@@ -41,6 +41,14 @@ The API health check is available at `http://127.0.0.1:8000/api/v1/health`.
 
 ## Verification
 
+From the repository root, run the complete local gate:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+Or run an individual application’s checks:
+
 ```powershell
 Set-Location backend
 uv run ruff check .
@@ -57,7 +65,3 @@ npm run build
 ## Roadmap
 
 The next tasks add deterministic 2D dataset generation, a configurable PyTorch MLP, and an instrumented training loop before a data-rich workbench is built.
-
-## Initial note
-
-yo
