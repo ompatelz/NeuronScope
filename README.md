@@ -57,3 +57,7 @@ npm run build
 ## Roadmap
 
 The next tasks add deterministic 2D dataset generation, a configurable PyTorch MLP, and an instrumented training loop before a data-rich workbench is built.
+
+## Initial note
+
+yo
