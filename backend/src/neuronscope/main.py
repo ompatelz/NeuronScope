@@ -1,6 +1,15 @@
 from fastapi import FastAPI
 
 from neuronscope.api.routes.health import router as health_router
+from neuronscope.core.config import Settings, get_settings
 
-app = FastAPI(title="NeuronScope API", version="0.1.0")
-app.include_router(health_router, prefix="/api/v1")
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create the HTTP application without initializing training resources."""
+    resolved_settings = settings or get_settings()
+    app = FastAPI(title=resolved_settings.app_name, version="0.1.0")
+    app.include_router(health_router, prefix=resolved_settings.api_v1_prefix)
+    return app
+
+
+app = create_app()
