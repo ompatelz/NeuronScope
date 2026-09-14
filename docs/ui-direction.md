@@ -54,6 +54,14 @@ available activation range, mean, standard deviation, and zero percentage. Missi
 output layer's intentionally absent activation summary remain explicit. Relative bars aid scanning,
 but warning color is reserved for observed non-finite counts—diagnostic thresholds belong to Task 11.
 
+## Controlled run comparison
+
+The Runs inspector keeps at most five completed responses in browser memory. Each entry records its
+exact submitted activation, initialization, optimizer, and learning rate alongside final observed
+loss, accuracy, and diagnostic count. Selecting an entry reopens its recorded graph, boundary,
+metrics, signals, and diagnostics without another API request. Clearing this bounded history is a
+local UI action; no server data is created or deleted, and the current completed run remains visible.
+
 ## Visual principles
 
 The workbench is calm, information-first, and dense only when there is evidence to show. It uses neutral surfaces, one purposeful blue accent, readable sans and monospace type, thin borders, and responsive spacing. Light and dark modes follow the system preference through the same semantic tokens.

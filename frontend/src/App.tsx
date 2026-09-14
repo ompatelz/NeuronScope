@@ -4,7 +4,7 @@ import {
   CirclePlay, Database, LoaderCircle, Network, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useRef, useState } from "react";
 
 import {
   createExperiment,
@@ -15,6 +15,7 @@ import { DecisionBoundary } from "./components/decisionBoundary";
 import { DiagnosticsPanel } from "./components/diagnosticsPanel";
 import { LayerSignals } from "./components/layerSignals";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
+import { appendRun, resolveRunResult, RunComparison, type RunRecord } from "./components/runComparison";
 import { TrainingMetricsChart } from "./components/trainingMetrics";
 import { parseHiddenLayers } from "./config";
 
@@ -160,7 +161,14 @@ function Stage({ state, onSelect }: { state: RunState; onSelect: (node: Architec
   );
 }
 
-function Inspector({ state, selected }: { state: RunState; selected: ArchitectureNodeData | null }) {
+function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearRuns }: {
+  state: RunState;
+  selected: ArchitectureNodeData | null;
+  runs: RunRecord[];
+  selectedRunId: number | null;
+  onSelectRun: (id: number) => void;
+  onClearRuns: () => void;
+}) {
   const result = state.status === "completed" ? state.result : null;
   const selectedLayerName = selected && result
     ? selected.layerIndex === 0 ? "__input__" : result.architecture.layers[selected.layerIndex - 1]?.name
@@ -169,7 +177,7 @@ function Inspector({ state, selected }: { state: RunState; selected: Architectur
     <aside className="inspector" aria-label="Debugger inspector">
       <Heading icon={Bug} title="Inspector" description="Evidence from the selected run" />
       <Tabs.Root defaultValue="selection">
-        <Tabs.List className="tab-list compact" aria-label="Inspector views"><Tabs.Tab value="selection">Selection</Tabs.Tab><Tabs.Tab value="diagnostics">Diagnostics</Tabs.Tab></Tabs.List>
+        <Tabs.List className="tab-list compact" aria-label="Inspector views"><Tabs.Tab value="selection">Selection</Tabs.Tab><Tabs.Tab value="diagnostics">Diagnostics</Tabs.Tab><Tabs.Tab value="runs">Runs</Tabs.Tab></Tabs.List>
         <Tabs.Panel value="selection" className="inspector-panel">
           {selected ? <><p className="selection-title">{selected.layerName} · {selected.label}</p><dl className="data-list">
             <div><dt>Neuron</dt><dd>{selected.neuronIndex === null ? "Summary" : selected.neuronIndex + 1}</dd></div>
@@ -182,6 +190,7 @@ function Inspector({ state, selected }: { state: RunState; selected: Architectur
           </dl><LayerSignals instrumentation={result.training.instrumentation} /></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
         </Tabs.Panel>
         <Tabs.Panel value="diagnostics" className="inspector-panel">{result ? <DiagnosticsPanel diagnostics={result.diagnostics} /> : <p className="panel-copy">Run an instrumented experiment to evaluate diagnostic rules.</p>}</Tabs.Panel>
+        <Tabs.Panel value="runs" className="inspector-panel"><RunComparison runs={runs} selectedId={selectedRunId} onSelect={onSelectRun} onClear={onClearRuns} /></Tabs.Panel>
       </Tabs.Root>
     </aside>
   );
@@ -201,6 +210,9 @@ export function App() {
   const [config, setConfig] = useState(initialConfig);
   const [state, setState] = useState<RunState>({ status: "idle" });
   const [selectedNode, setSelectedNode] = useState<ArchitectureNodeData | null>(null);
+  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const nextRunId = useRef(1);
   function update<K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) {
     setConfig((current) => ({ ...current, [key]: value }));
   }
@@ -211,8 +223,22 @@ export function App() {
     catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "Invalid configuration." }); return; }
     setSelectedNode(null);
     setState({ status: "loading" });
-    try { setState({ status: "completed", result: await createExperiment(request) }); }
+    try {
+      const result = await createExperiment(request);
+      const id = nextRunId.current;
+      nextRunId.current += 1;
+      setRuns((current) => appendRun(current, { id, label: `Run ${id}`, request, result }));
+      setSelectedRunId(id);
+      setState({ status: "completed", result });
+    }
     catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "The training request failed." }); }
+  }
+  const displayResult = resolveRunResult(runs, selectedRunId, state.status === "completed" ? state.result : null);
+  const displayState: RunState = displayResult ? { status: "completed", result: displayResult } : state;
+  function clearRuns() {
+    setRuns([]);
+    setSelectedRunId(null);
+    nextRunId.current = 1;
   }
   return (
     <main className="app-shell"><form onSubmit={submit}>
@@ -223,7 +249,7 @@ export function App() {
         </div>
       </header>
       <StateSummary state={state} />
-      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={state} onSelect={setSelectedNode} /><Inspector state={state} selected={selectedNode} /><Metrics state={state} /></div>
+      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={displayState} onSelect={setSelectedNode} /><Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); }} onClearRuns={clearRuns} /><Metrics state={displayState} /></div>
     </form></main>
   );
 }
