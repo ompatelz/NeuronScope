@@ -44,6 +44,24 @@ export interface PlaybackSnapshot {
   metrics: { epoch: number; loss: number; accuracy: number };
   instrumentation: EpochInstrumentation | null;
   probabilities: number[];
+  forward_pass: ForwardPassTrace;
+}
+
+export interface ForwardLayerTrace {
+  layer_name: string;
+  activation_name: string | null;
+  pre_activations: Array<number | null>;
+  activations: Array<number | null>;
+}
+
+export interface ForwardPassTrace {
+  sample_index: number;
+  input_values: number[];
+  expected_label: 0 | 1;
+  layers: ForwardLayerTrace[];
+  output_logit: number | null;
+  predicted_probability: number;
+  predicted_label: 0 | 1;
 }
 
 export interface ExperimentRequest {
@@ -64,7 +82,7 @@ export interface ExperimentRequest {
   };
   boundary?: { resolution: number };
   diagnostics?: { consecutive_epochs?: number; vanishing_gradient_norm?: number; exploding_gradient_norm?: number; dead_relu_zero_percentage?: number };
-  playback?: { max_snapshots: number };
+  playback?: { max_snapshots: number; trace_sample_index: number };
 }
 
 export interface ExperimentResponse {

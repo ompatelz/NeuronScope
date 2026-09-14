@@ -36,6 +36,32 @@ class PlaybackConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     max_snapshots: int = Field(default=12, ge=2, le=24)
+    trace_sample_index: int = Field(default=0, ge=0)
+
+
+class ForwardLayerTrace(BaseModel):
+    """Observed values for one learned layer during a single forward pass."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    layer_name: str
+    activation_name: str | None
+    pre_activations: tuple[float | None, ...]
+    activations: tuple[float | None, ...]
+
+
+class ForwardPassTrace(BaseModel):
+    """A bounded, input-specific trace through one recorded model state."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    sample_index: int = Field(ge=0)
+    input_values: tuple[float, ...]
+    expected_label: int = Field(ge=0, le=1)
+    layers: tuple[ForwardLayerTrace, ...]
+    output_logit: float | None
+    predicted_probability: float
+    predicted_label: int = Field(ge=0, le=1)
 
 
 class PlaybackSnapshot(BaseModel):
@@ -47,6 +73,7 @@ class PlaybackSnapshot(BaseModel):
     metrics: EpochMetrics
     instrumentation: EpochInstrumentation | None
     probabilities: tuple[float, ...]
+    forward_pass: ForwardPassTrace
 
 
 class PlaybackResult(BaseModel):
@@ -80,6 +107,8 @@ class ExperimentRequest(BaseModel):
             raise ValueError(
                 "Generated binary datasets require a model with input_size=2 and output_size=1."
             )
+        if self.playback.trace_sample_index >= self.dataset.samples:
+            raise ValueError("Trace sample index must refer to a generated dataset point.")
         return self
 
 

@@ -17,8 +17,8 @@ const response = {
   boundary: { resolution: 2, x_coordinates: [0, 39], y_coordinates: [-1, 1], probabilities: [0.1, 0.2, 0.8, 0.9] },
   diagnostics: [],
   playback: { resolution: 2, x_coordinates: [0, 39], y_coordinates: [-1, 1], snapshots: [
-    { epoch: 1, metrics: { epoch: 1, loss: 0.7, accuracy: 0.5 }, instrumentation: null, probabilities: [0.2, 0.3, 0.7, 0.8] },
-    { epoch: 2, metrics: { epoch: 2, loss: 0.25, accuracy: 0.9 }, instrumentation: null, probabilities: [0.1, 0.2, 0.8, 0.9] },
+    { epoch: 1, metrics: { epoch: 1, loss: 0.7, accuracy: 0.5 }, instrumentation: null, probabilities: [0.2, 0.3, 0.7, 0.8], forward_pass: { sample_index: 0, input_values: [0, 0], expected_label: 0, layers: [{ layer_name: "hidden_0", activation_name: "relu", pre_activations: [-1, 0.2, 0, 0.8], activations: [0, 0.2, 0, 0.8] }, { layer_name: "output", activation_name: "sigmoid", pre_activations: [-0.4], activations: [0.4] }], output_logit: -0.4, predicted_probability: 0.4, predicted_label: 0 } },
+    { epoch: 2, metrics: { epoch: 2, loss: 0.25, accuracy: 0.9 }, instrumentation: null, probabilities: [0.1, 0.2, 0.8, 0.9], forward_pass: { sample_index: 0, input_values: [0, 0], expected_label: 0, layers: [{ layer_name: "hidden_0", activation_name: "relu", pre_activations: [-1, 0.5, 0, 1.2], activations: [0, 0.5, 0, 1.2] }, { layer_name: "output", activation_name: "sigmoid", pre_activations: [-1.4], activations: [0.2] }], output_logit: -1.4, predicted_probability: 0.2, predicted_label: 0 } },
   ] },
 };
 
@@ -68,7 +68,7 @@ describe("App", () => {
     expect(body.dataset.samples).toBe(40);
     expect(body.model.hidden_layers).toEqual([4]);
     expect(body.training.epochs).toBe(2);
-    const neuron = await screen.findByLabelText("Hidden 1, neuron 1 of 4");
+    const neuron = await screen.findByLabelText(/Hidden 1, neuron 1 of 4/);
     fireEvent.click(neuron);
     expect(screen.getByText("Hidden 1 · h1.1")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Boundary" }));
@@ -153,7 +153,7 @@ describe("parseHiddenLayers", () => {
   it("validates every bounded numeric control before serialization", () => {
     const valid = {
       samples: 200, noise: 0.1, seed: 42, hiddenLayers: "8, 8", learningRate: 0.01,
-      epochs: 200, boundaryResolution: 48, playbackSnapshots: 12, diagnosticWindow: 3,
+      epochs: 200, boundaryResolution: 48, playbackSnapshots: 12, traceSample: 1, diagnosticWindow: 3,
       vanishingGradientNorm: 1e-6, explodingGradientNorm: 100, deadReluPercentage: 95,
     };
     expect(validateConfig(valid)).toBeNull();

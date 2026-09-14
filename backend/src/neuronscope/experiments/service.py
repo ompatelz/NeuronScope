@@ -3,6 +3,7 @@
 from neuronscope.datasets import generate_dataset
 from neuronscope.diagnostics import evaluate_diagnostics
 from neuronscope.experiments.boundary import compute_decision_boundary
+from neuronscope.experiments.forward_trace import compute_forward_trace
 from neuronscope.experiments.schemas import (
     ExperimentRequest,
     ExperimentResponse,
@@ -39,6 +40,9 @@ def run_experiment(request: ExperimentRequest) -> ExperimentResponse:
                     metrics=metrics[epoch],
                     instrumentation=instrumentation.get(epoch),
                     probabilities=observed.probabilities,
+                    forward_pass=compute_forward_trace(
+                        model, dataset, request.playback.trace_sample_index
+                    ),
                 )
             )
     finally:

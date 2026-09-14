@@ -13,13 +13,13 @@ export function parseHiddenLayers(value: string): number[] {
 export type ConfigField =
   | "samples" | "noise" | "seed" | "hiddenLayers" | "learningRate" | "epochs"
   | "boundaryResolution" | "playbackSnapshots" | "diagnosticWindow"
-  | "vanishingGradientNorm" | "explodingGradientNorm" | "deadReluPercentage";
+  | "traceSample" | "vanishingGradientNorm" | "explodingGradientNorm" | "deadReluPercentage";
 export interface ConfigValidationError { field: ConfigField; message: string }
 
 export type ValidatableConfig = Pick<WorkbenchConfig,
   "samples" | "noise" | "seed" | "hiddenLayers" | "learningRate" | "epochs"
   | "boundaryResolution" | "playbackSnapshots" | "diagnosticWindow"
-  | "vanishingGradientNorm" | "explodingGradientNorm" | "deadReluPercentage"
+  | "traceSample" | "vanishingGradientNorm" | "explodingGradientNorm" | "deadReluPercentage"
 >;
 
 export function estimateParameterCount(hiddenLayers: string): number | null {
@@ -58,6 +58,9 @@ export function validateConfig(config: ValidatableConfig): ConfigValidationError
   if (!Number.isInteger(config.playbackSnapshots) || config.playbackSnapshots < 2 || config.playbackSnapshots > 24) {
     return { field: "playbackSnapshots", message: "Playback snapshots must be a whole number from 2 to 24." };
   }
+  if (!Number.isInteger(config.traceSample) || config.traceSample < 1 || config.traceSample > config.samples) {
+    return { field: "traceSample", message: `Trace sample must be a whole number from 1 to ${config.samples}.` };
+  }
   if (!Number.isInteger(config.diagnosticWindow) || config.diagnosticWindow < 2 || config.diagnosticWindow > 20) {
     return { field: "diagnosticWindow", message: "Diagnostic window must be a whole number from 2 to 20." };
   }
@@ -92,6 +95,7 @@ export interface WorkbenchConfig {
   epochs: number;
   boundaryResolution: number;
   playbackSnapshots: number;
+  traceSample: number;
   diagnosticWindow: number;
   vanishingGradientNorm: number;
   explodingGradientNorm: number;

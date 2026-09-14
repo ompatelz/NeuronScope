@@ -17,6 +17,8 @@ run; the interface does not invent demonstration telemetry.
 - Train synchronously on CPU with SGD or Adam, bounded learning rates and epochs, and
   `BCEWithLogitsLoss`.
 - Inspect the model as an interactive node-and-edge graph derived from its actual architecture.
+- Animate one chosen dataset sample through the recorded model state: inputs, exact per-neuron
+  activations, layer-by-layer propagation, and the final class probability remain tied to PyTorch.
 - View the final decision boundary from real predictions over a bounded 2D grid.
 - Follow raw loss and accuracy history without smoothing or fabricated summaries.
 - Inspect per-layer activation distributions, zero percentages, weight norms, and gradient
@@ -55,12 +57,14 @@ flowchart LR
     TRAIN --> HOOKS[Activation + gradient summaries]
     HOOKS --> RULES[Transparent diagnostics]
     TRAIN --> PLAYBACK[Selected model snapshots]
+    PLAYBACK --> TRACE[Input-specific forward traces]
     MODEL --> BOUNDARY[Decision-grid inference]
     PLAYBACK --> BOUNDARY
     METRICS --> RESPONSE[Structured experiment response]
     HOOKS --> RESPONSE
     RULES --> RESPONSE
     BOUNDARY --> RESPONSE
+    TRACE --> RESPONSE
     RESPONSE --> UI
 ```
 
@@ -143,11 +147,11 @@ The workbench sends one bounded request to `POST /api/v1/experiments`:
 | Training | SGD/Adam, learning rate greater than 0 and at most 1, 1–5,000 epochs, instrumentation toggle |
 | Boundary | square prediction-grid resolution from 24–80 |
 | Diagnostics | configurable consecutive-epoch and gradient/dead-ReLU thresholds |
-| Playback | 2–24 retained epoch snapshots |
+| Playback | 2–24 retained epoch snapshots and one validated forward-trace sample |
 
 The response contains the generated labeled points, serializable model architecture, every epoch's
 loss and accuracy, optional scalar instrumentation, final decision grid, diagnostics, and bounded
-playback data. Runs are intentionally synchronous because the validated datasets and models are
+playback data, including the selected sample's real per-layer pre-activations and activations. Runs are intentionally synchronous because the validated datasets and models are
 small.
 
 ## Deterministic behavior
@@ -203,7 +207,8 @@ the corresponding backend or frontend gate for relevant pull requests and pushes
 - Completed-run comparison is capped at five entries in browser memory and is not persisted across
   reloads.
 - Diagnostics are deterministic heuristics, not universal proofs that a model is healthy or broken.
-- Playback retains selected epochs, not every tensor or optimizer state from every step.
+- Playback retains selected epochs and one requested sample's forward trace, not every tensor,
+  edge contribution, optimizer state, or training example from every step.
 - The repository does not currently expose authentication, shared experiments, a database, or
   arbitrary code execution.
 

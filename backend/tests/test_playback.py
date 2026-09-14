@@ -42,6 +42,11 @@ def test_playback_uses_one_fixed_grid_and_real_changing_predictions() -> None:
     )
     assert all(snapshot.metrics.epoch == snapshot.epoch for snapshot in response.playback.snapshots)
     assert all(snapshot.instrumentation is not None for snapshot in response.playback.snapshots)
+    traces = [snapshot.forward_pass for snapshot in response.playback.snapshots]
+    assert all(trace.sample_index == 0 for trace in traces)
+    assert all(trace.input_values == traces[0].input_values for trace in traces)
+    assert all(len(trace.layers[0].activations) == 8 for trace in traces)
+    assert traces[0].layers != traces[-1].layers
 
 
 def test_playback_response_does_not_serialize_model_weights() -> None:

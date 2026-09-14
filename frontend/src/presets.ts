@@ -12,7 +12,7 @@ const baseline: WorkbenchConfig = {
   dataset: "two_moons", samples: 200, noise: 0.12, seed: 42,
   hiddenLayers: "8, 8", activation: "relu", initialization: "he",
   optimizer: "adam", learningRate: 0.01, epochs: 200,
-  boundaryResolution: 48, playbackSnapshots: 12, diagnosticWindow: 3,
+  boundaryResolution: 48, playbackSnapshots: 12, traceSample: 1, diagnosticWindow: 3,
   vanishingGradientNorm: 1e-6, explodingGradientNorm: 100, deadReluPercentage: 95,
 };
 

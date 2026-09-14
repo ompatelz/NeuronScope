@@ -15,8 +15,8 @@
   layout and bounded visible neurons.
 - **Native SVG:** retained for the decision boundary, where a bounded probability raster and sample
   overlay are more direct than a general chart abstraction.
-- **Motion:** remains unnecessary; CSS transitions respect reduced-motion preferences and no
-  decorative entrance animation was added.
+- **Motion:** remains unnecessary; the network uses small state-driven CSS transitions and one
+  propagation dash animation, all suppressed by reduced-motion preferences.
 - **Radix:** remains a mature alternative, but Base UI already supplies the project's accessible
   unstyled primitives. Mixing primitive systems would add cost without a current need.
 
@@ -38,7 +38,7 @@ states remain explicit, and unavailable visualizations say so instead of display
 Four experiment presets provide deliberate starting points: a healthy ReLU baseline, a spiral
 challenge, a deep-sigmoid gradient stress run, and an aggressive ReLU stress run. Presets only fill
 real configuration fields; they never promise a warning or inject telemetry. Advanced controls expose
-decision-grid density, playback sampling, diagnostic persistence, and diagnostic thresholds.
+decision-grid density, playback sampling, the forward-trace sample, diagnostic persistence, and diagnostic thresholds.
 
 ## Network graph
 
@@ -48,6 +48,15 @@ stable identifiers and adjacent-layer edges. Nodes can be selected but not moved
 inspector reports the selected neuron's layer, index, width, activation, and layer parameter count.
 Very wide layers retain their real count while collapsing excess visual nodes, avoiding an unbounded
 DOM and edge explosion. Graph layout remains presentation logic and never changes model execution.
+
+Each retained training epoch also carries a bounded forward trace for one user-selected dataset row.
+The graph player advances through the exact input values, hidden-layer activations, output sigmoid,
+and predicted class captured from that PyTorch model state. Positive and negative activations use
+different colors, magnitude controls intensity, and zero ReLU activations remain visibly dormant.
+Play, pause, restart, step, and speed controls keep the computation inspectable; reduced-motion mode
+opens at the settled output and retains manual stepping. Because weights and per-edge contributions
+are intentionally not serialized, traveling edge dashes communicate execution order only. The UI
+states that boundary explicitly instead of presenting the animation as edge strength.
 
 ## Training metrics
 

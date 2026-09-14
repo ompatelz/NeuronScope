@@ -66,6 +66,11 @@ def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
     assert len(body["boundary"]["probabilities"]) == 48 * 48
     assert isinstance(body["diagnostics"], list)
     assert body["playback"]["snapshots"][-1]["epoch"] == 2
+    trace = body["playback"]["snapshots"][-1]["forward_pass"]
+    assert trace["sample_index"] == 0
+    assert len(trace["input_values"]) == 2
+    assert [layer["layer_name"] for layer in trace["layers"]] == ["hidden_0", "output"]
+    assert 0.0 <= trace["predicted_probability"] <= 1.0
 
 
 def test_experiment_endpoint_rejects_invalid_nested_configurations() -> None:
@@ -88,10 +93,15 @@ def test_experiment_endpoint_rejects_invalid_nested_configurations() -> None:
         "/api/v1/experiments",
         json={**valid, "training": {"epochs": 0}},
     )
+    invalid_trace_sample = client.post(
+        "/api/v1/experiments",
+        json={**valid, "playback": {"max_snapshots": 2, "trace_sample_index": 40}},
+    )
 
     assert invalid_dataset.status_code == 422
     assert invalid_model.status_code == 422
     assert invalid_training.status_code == 422
+    assert invalid_trace_sample.status_code == 422
 
 
 def test_experiment_endpoint_accepts_the_complete_workbench_contract() -> None:
@@ -120,7 +130,7 @@ def test_experiment_endpoint_accepts_the_complete_workbench_contract() -> None:
                 "exploding_gradient_norm": 100.0,
                 "dead_relu_zero_percentage": 95.0,
             },
-            "playback": {"max_snapshots": 2},
+            "playback": {"max_snapshots": 2, "trace_sample_index": 4},
         },
     )
 
@@ -133,3 +143,4 @@ def test_experiment_endpoint_accepts_the_complete_workbench_contract() -> None:
     assert len(body["boundary"]["probabilities"]) == 24**2
     assert len(body["playback"]["snapshots"]) == 2
     assert body["playback"]["snapshots"][-1]["epoch"] == 3
+    assert body["playback"]["snapshots"][-1]["forward_pass"]["sample_index"] == 4

@@ -55,7 +55,7 @@ function buildRequest(config: WorkbenchConfig): ExperimentRequest {
       exploding_gradient_norm: config.explodingGradientNorm,
       dead_relu_zero_percentage: config.deadReluPercentage,
     },
-    playback: { max_snapshots: config.playbackSnapshots },
+    playback: { max_snapshots: config.playbackSnapshots, trace_sample_index: config.traceSample - 1 },
   };
 }
 
@@ -142,6 +142,7 @@ function Configuration({ config, onChange, onPreset, error }: {
             <Field label="Boundary grid" hint="24–80 cells per axis"><input type="number" min="24" max="80" value={config.boundaryResolution} aria-invalid={invalid("boundaryResolution")} aria-describedby={describedBy("boundaryResolution")} onChange={(e) => onChange("boundaryResolution", e.target.valueAsNumber)} /></Field>
             <Field label="Playback frames" hint="2–24 retained epochs"><input type="number" min="2" max="24" value={config.playbackSnapshots} aria-invalid={invalid("playbackSnapshots")} aria-describedby={describedBy("playbackSnapshots")} onChange={(e) => onChange("playbackSnapshots", e.target.valueAsNumber)} /></Field>
           </div>
+          <Field label="Forward-pass sample" hint={`Dataset row 1–${config.samples}`}><input type="number" min="1" max={config.samples} value={config.traceSample} aria-invalid={invalid("traceSample")} aria-describedby={describedBy("traceSample")} onChange={(e) => onChange("traceSample", e.target.valueAsNumber)} /></Field>
           <Field label="Diagnostic window" hint="Consecutive observations required"><input type="number" min="2" max="20" value={config.diagnosticWindow} aria-invalid={invalid("diagnosticWindow")} aria-describedby={describedBy("diagnosticWindow")} onChange={(e) => onChange("diagnosticWindow", e.target.valueAsNumber)} /></Field>
           <div className="control-pair">
             <Field label="Vanishing norm"><input type="number" min="0.000000001" step="0.000001" value={config.vanishingGradientNorm} aria-invalid={invalid("vanishingGradientNorm")} aria-describedby={describedBy("vanishingGradientNorm")} onChange={(e) => onChange("vanishingGradientNorm", e.target.valueAsNumber)} /></Field>
@@ -173,7 +174,7 @@ function EmptyStage({ icon: Icon, title, text }: { icon: LucideIcon; title: stri
   return <div className="empty-stage"><Icon aria-hidden="true" /><strong>{title}</strong><p>{text}</p></div>;
 }
 
-function Stage({ state, onSelect, snapshot }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void; snapshot: PlaybackSnapshot | null }) {
+function Stage({ state, onSelect, snapshot, traceKey }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void; snapshot: PlaybackSnapshot | null; traceKey: string }) {
   const result = state.status === "completed" ? state.result : null;
   const boundary = result && snapshot ? {
     resolution: result.playback.resolution,
@@ -189,7 +190,7 @@ function Stage({ state, onSelect, snapshot }: { state: RunState; onSelect: (node
           <Tabs.Tab value="boundary"><Braces /> Boundary</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="network" className="stage-panel">
-          {result ? <NetworkGraph architecture={result.architecture} onSelect={onSelect} />
+          {result && snapshot ? <NetworkGraph key={traceKey} architecture={result.architecture} trace={snapshot.forward_pass} epoch={snapshot.epoch} onSelect={onSelect} />
             : <EmptyStage icon={Network} title="No observed architecture yet" text="Run an experiment to inspect the architecture returned by the training API." />}
         </Tabs.Panel>
         <Tabs.Panel value="boundary" className="stage-panel">
@@ -224,6 +225,7 @@ function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearR
             <div><dt>Neuron</dt><dd>{selected.neuronIndex === null ? "Summary" : selected.neuronIndex + 1}</dd></div>
             <div><dt>Layer width</dt><dd>{selected.width}</dd></div>
             <div><dt>Activation</dt><dd>{selected.activation ?? "None"}</dd></div>
+            <div><dt>Observed value</dt><dd>{selected.observedValue === null || selected.observedValue === undefined ? "Unavailable" : selected.observedValue.toFixed(5)}</dd></div>
             <div><dt>Layer parameters</dt><dd>{selected.parameterCount.toLocaleString()}</dd></div>
           </dl>{result && <LayerSignals instrumentation={snapshot?.instrumentation ? [snapshot.instrumentation] : result.training.instrumentation} selectedLayerName={selectedLayerName} />}</> : result ? <><p className="panel-copy">Select a neuron to focus its signals. All learned layers are shown below.</p><dl className="data-list">
             <div><dt>Dense layers</dt><dd>{result.architecture.layers.length}</dd></div>
@@ -362,7 +364,7 @@ export function App() {
     setState({ status: "idle" });
   }
   const configuration = <Configuration config={config} onChange={update} onPreset={applyPreset} error={configError} />;
-  const stage = <Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} />;
+  const stage = <Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} traceKey={`${selectedRunId ?? "latest"}-${playbackSnapshot?.epoch ?? "none"}`} />;
   const inspector = <Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); setSelectedPlaybackEpoch(null); }} onClearRuns={clearRuns} snapshot={playbackSnapshot} />;
   const metrics = <Metrics state={displayState} snapshot={playbackSnapshot} onSelectEpoch={setSelectedPlaybackEpoch} />;
   return (
