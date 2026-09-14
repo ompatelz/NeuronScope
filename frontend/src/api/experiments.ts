@@ -121,11 +121,15 @@ function errorMessage(payload: unknown): string | undefined {
     .join("; ");
 }
 
-export async function createExperiment(request: ExperimentRequest): Promise<ExperimentResponse> {
+export async function createExperiment(
+  request: ExperimentRequest,
+  signal?: AbortSignal,
+): Promise<ExperimentResponse> {
   const response = await fetch("/api/v1/experiments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
+    signal,
   });
   if (!response.ok) {
     let payload: unknown;

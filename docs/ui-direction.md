@@ -62,6 +62,16 @@ loss, accuracy, and diagnostic count. Selecting an entry reopens its recorded gr
 metrics, signals, and diagnostics without another API request. Clearing this bounded history is a
 local UI action; no server data is created or deleted, and the current completed run remains visible.
 
+## Integrated request and accessibility behavior
+
+The workbench validates every bounded numeric field and the hidden-layer expression before JSON
+serialization. Errors are linked to the invalid control and focus returns there. A submitted run owns
+an `AbortController` and monotonically increasing request identifier: cancellation is immediate, and
+a response arriving after cancellation or a newer request cannot replace visible evidence or enter
+comparison history. Loading, API failure, cancellation, and completion remain distinct announced
+states. Reduced-motion preferences suppress decorative transitions, mobile controls retain practical
+touch sizes, and dense tab/table regions scroll rather than clipping their content.
+
 ## Visual principles
 
 The workbench is calm, information-first, and dense only when there is evidence to show. It uses neutral surfaces, one purposeful blue accent, readable sans and monospace type, thin borders, and responsive spacing. Light and dark modes follow the system preference through the same semantic tokens.
