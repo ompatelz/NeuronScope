@@ -91,11 +91,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 .selection-title { margin: 0 0 9px; font: 600 11px/1.3 var(--font-mono); }
 .inspector-panel { padding: 14px; }.panel-copy { max-width: 45ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .data-list { margin: 0; }.data-list div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 11px; }.data-list dt { color: var(--muted); }.data-list dd { margin: 0; font-family: var(--font-mono); text-transform: capitalize; }
-.metrics-table-wrap { overflow: auto; }.metrics-table-wrap table { width: 100%; border-collapse: collapse; font: 10px/1.35 var(--font-mono); }.metrics-table-wrap th { color: var(--muted); font-weight: 500; text-align: left; }.metrics-table-wrap th, .metrics-table-wrap td { padding: 5px 10px; border-bottom: 1px solid var(--border); }.metrics-table-wrap th:not(:first-child), .metrics-table-wrap td:not(:first-child) { text-align: right; }
+.training-metrics { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, .8fr); grid-template-rows: auto minmax(0, 1fr); gap: 8px 16px; }
+.metrics-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 7px 18px; color: var(--muted); font: 10px/1.3 var(--font-mono); }
+.metrics-meta strong { color: var(--foreground); font-weight: 650; }
+.metrics-chart { display: block; width: 100%; height: 135px; overflow: visible; }
+.metric-grid line { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.metric-labels { fill: var(--muted); font: 8px var(--font-mono); }
+.metric-trace { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.loss-trace { stroke: var(--accent); }.accuracy-trace { stroke: var(--success); }
+.metric-point { stroke: var(--surface-raised); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.loss-point { fill: var(--accent); }.accuracy-point { fill: var(--success); }
+.metrics-table-wrap { overflow: auto; }.metrics-table-wrap table { width: 100%; border-collapse: collapse; font: 10px/1.35 var(--font-mono); }.metrics-table-wrap caption { padding: 0 10px 5px; color: var(--muted); font-family: var(--font-sans); text-align: left; }.metrics-table-wrap th { color: var(--muted); font-weight: 500; text-align: left; }.metrics-table-wrap th, .metrics-table-wrap td { padding: 5px 10px; border-bottom: 1px solid var(--border); }.metrics-table-wrap th:not(:first-child), .metrics-table-wrap td:not(:first-child) { text-align: right; }
 
 @media (max-width: 1023px) {
   .workbench-grid { grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); grid-template-rows: 520px auto 210px; }
   .config-rail { grid-row: 1 / 4; }.stage { border-right: 0; }.inspector { border-top: 1px solid var(--border); }.metrics-dock { grid-column: 2; }
+  .training-metrics { grid-template-columns: 1fr; }.metrics-meta { grid-column: 1; }.metrics-dock { min-height: 340px; }
 }
 @media (max-width: 700px) {
   .brand-lockup small, .status-label { display: none; }.command-bar { padding: 0 10px; }.state-summary div { display: grid; gap: 2px; }

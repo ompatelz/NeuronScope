@@ -13,6 +13,7 @@ import {
 } from "./api/experiments";
 import { DecisionBoundary } from "./components/decisionBoundary";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
+import { TrainingMetricsChart } from "./components/trainingMetrics";
 import { parseHiddenLayers } from "./config";
 
 interface WorkbenchConfig {
@@ -182,13 +183,11 @@ function Inspector({ state, selected }: { state: RunState; selected: Architectur
 }
 
 function Metrics({ state }: { state: RunState }) {
-  const recent = state.status === "completed" ? state.result.training.history.slice(-5) : [];
   return (
     <section className="metrics-dock" aria-label="Metrics history">
       <Heading icon={BarChart3} title="Metrics history" description="Raw observations, newest last" />
-      {recent.length ? <div className="metrics-table-wrap"><table><caption className="sr-only">Most recent training metrics</caption><thead><tr><th>Epoch</th><th>Loss</th><th>Accuracy</th></tr></thead><tbody>
-        {recent.map((metric) => <tr key={metric.epoch}><td>{metric.epoch}</td><td>{metric.loss.toFixed(5)}</td><td>{(metric.accuracy * 100).toFixed(1)}%</td></tr>)}
-      </tbody></table></div> : <p className="panel-copy">Loss and accuracy observations appear after a completed run.</p>}
+      {state.status === "completed" ? <TrainingMetricsChart training={state.result.training} />
+        : <p className="panel-copy">Loss and accuracy observations appear after a completed run.</p>}
     </section>
   );
 }

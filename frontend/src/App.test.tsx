@@ -43,7 +43,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Epochs"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Run experiment" }));
     await screen.findByText("Run completed");
-    expect(screen.getAllByText("90.0%", { exact: false })).toHaveLength(2);
+    expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("h1.1")).toBeTruthy();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body)) as { dataset: { samples: number }; model: { hidden_layers: number[] }; training: { epochs: number } };

@@ -37,6 +37,14 @@ inspector reports the selected neuron's layer, index, width, activation, and lay
 Very wide layers retain their real count while collapsing excess visual nodes, avoiding an unbounded
 DOM and edge explosion. Graph layout remains presentation logic and never changes model execution.
 
+## Training metrics
+
+The metrics dock uses a lightweight SVG with separate loss and accuracy bands, preserving every raw
+epoch observation without curve smoothing. Each point exposes its exact value, while a semantic table
+keeps the most recent observations available without relying on color or pointer interaction. Final
+loss, accuracy, epoch progress, optimizer, and learning rate are taken directly from the completed
+training response. No chart is rendered for idle, loading, failed, or empty-history states.
+
 ## Visual principles
 
 The workbench is calm, information-first, and dense only when there is evidence to show. It uses neutral surfaces, one purposeful blue accent, readable sans and monospace type, thin borders, and responsive spacing. Light and dark modes follow the system preference through the same semantic tokens.
