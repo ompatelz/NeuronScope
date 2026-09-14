@@ -44,3 +44,21 @@ is a sound baseline. Xavier initialization scales weights using both fan-in and 
 natural fit for tanh or sigmoid. He initialization emphasizes fan-in and is designed for ReLU.
 Seeding makes construction repeatable, while NeuronScope isolates model construction so it does
 not unexpectedly advance the caller's global random-number stream.
+
+## Loss, backpropagation, and optimization
+
+For binary classification, the output logit is compared with the class label using binary cross
+entropy. `BCEWithLogitsLoss` combines the sigmoid conversion and cross-entropy calculation in a
+numerically stable operation. A lower loss means the logits better support the observed labels;
+accuracy separately counts how often the logit's sign selects the correct class.
+
+Each epoch performs three distinct operations: `optimizer.zero_grad()` clears gradients left by
+the previous step, `loss.backward()` applies the chain rule through the computation graph and
+stores parameter gradients, and `optimizer.step()` updates the parameters. SGD follows the
+current gradient directly. Adam also tracks moving estimates of gradient magnitude, which often
+makes it less sensitive to a single learning-rate choice.
+
+NeuronScope's first engine uses one full CPU batch. This is appropriate for its small visual 2D
+datasets and removes data-order randomness. The learning rate controls update size, while the
+epoch count controls how many complete parameter updates are made. The engine returns post-update
+loss and accuracy for every epoch so later visualizations can show real learning history.
