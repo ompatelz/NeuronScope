@@ -5,6 +5,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from neuronscope.datasets import DatasetConfig, DatasetResult
+from neuronscope.diagnostics import DiagnosticResult, DiagnosticsConfig
 from neuronscope.models import MLPArchitecture, MLPConfig
 from neuronscope.training import TrainingConfig, TrainingResult
 
@@ -37,6 +38,7 @@ class ExperimentRequest(BaseModel):
     model: MLPConfig
     training: TrainingConfig
     boundary: DecisionBoundaryConfig = Field(default_factory=DecisionBoundaryConfig)
+    diagnostics: DiagnosticsConfig = Field(default_factory=DiagnosticsConfig)
 
     @model_validator(mode="after")
     def validate_generated_dataset_shape(self) -> Self:
@@ -58,3 +60,4 @@ class ExperimentResponse(BaseModel):
     architecture: MLPArchitecture
     training: TrainingResult
     boundary: DecisionBoundaryResult
+    diagnostics: tuple[DiagnosticResult, ...]
