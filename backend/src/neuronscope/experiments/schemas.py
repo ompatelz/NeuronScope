@@ -10,6 +10,18 @@ from neuronscope.instrumentation import EpochInstrumentation
 from neuronscope.models import MLPArchitecture, MLPConfig
 from neuronscope.training import EpochMetrics, TrainingConfig, TrainingResult
 
+MAX_EXPERIMENT_WORK_UNITS = 1_000_000_000
+
+
+def _parameter_count(config: MLPConfig) -> int:
+    """Return the number of trainable weights and biases in an MLP configuration."""
+
+    widths = (config.input_size, *config.hidden_layers, config.output_size)
+    return sum(
+        input_width * output_width + output_width
+        for input_width, output_width in zip(widths[:-1], widths[1:], strict=True)
+    )
+
 
 class DecisionBoundaryConfig(BaseModel):
     """Bounded controls for final model-grid inference."""
@@ -36,6 +48,32 @@ class PlaybackConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     max_snapshots: int = Field(default=12, ge=2, le=24)
+    trace_sample_index: int = Field(default=0, ge=0)
+
+
+class ForwardLayerTrace(BaseModel):
+    """Observed values for one learned layer during a single forward pass."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    layer_name: str
+    activation_name: str | None
+    pre_activations: tuple[float | None, ...]
+    activations: tuple[float | None, ...]
+
+
+class ForwardPassTrace(BaseModel):
+    """A bounded, input-specific trace through one recorded model state."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    sample_index: int = Field(ge=0)
+    input_values: tuple[float, ...]
+    expected_label: int = Field(ge=0, le=1)
+    layers: tuple[ForwardLayerTrace, ...]
+    output_logit: float | None
+    predicted_probability: float
+    predicted_label: int = Field(ge=0, le=1)
 
 
 class PlaybackSnapshot(BaseModel):
@@ -47,6 +85,7 @@ class PlaybackSnapshot(BaseModel):
     metrics: EpochMetrics
     instrumentation: EpochInstrumentation | None
     probabilities: tuple[float, ...]
+    forward_pass: ForwardPassTrace
 
 
 class PlaybackResult(BaseModel):
@@ -79,6 +118,18 @@ class ExperimentRequest(BaseModel):
         if self.model.input_size != 2 or self.model.output_size != 1:
             raise ValueError(
                 "Generated binary datasets require a model with input_size=2 and output_size=1."
+            )
+        if self.playback.trace_sample_index >= self.dataset.samples:
+            raise ValueError("Trace sample index must refer to a generated dataset point.")
+
+        parameters = _parameter_count(self.model)
+        training_work = self.dataset.samples * self.training.epochs
+        inference_work = self.boundary.resolution**2 * (self.playback.max_snapshots + 1)
+        workload = parameters * (training_work + inference_work)
+        if workload > MAX_EXPERIMENT_WORK_UNITS:
+            raise ValueError(
+                "Experiment workload exceeds the public execution budget; reduce samples, "
+                "epochs, layer widths, playback snapshots, or boundary resolution."
             )
         return self
 

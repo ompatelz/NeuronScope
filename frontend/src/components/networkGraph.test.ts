@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExperimentResponse } from "../api/experiments";
+import type { ExperimentResponse, ForwardPassTrace } from "../api/experiments";
 import { architectureToGraph } from "./networkGraph";
 
 function architecture(hiddenLayers: number[]): ExperimentResponse["architecture"] {
@@ -18,6 +18,19 @@ function architecture(hiddenLayers: number[]): ExperimentResponse["architecture"
     total_parameters: 42,
   };
 }
+
+const trace: ForwardPassTrace = {
+  sample_index: 0,
+  input_values: [0.25, -0.5],
+  expected_label: 1,
+  layers: [
+    { layer_name: "hidden_0", activation_name: "relu", pre_activations: [-1, 0, 2], activations: [0, 0, 2] },
+    { layer_name: "output", activation_name: "sigmoid", pre_activations: [1.4], activations: [0.8] },
+  ],
+  output_logit: 1.4,
+  predicted_probability: 0.8,
+  predicted_label: 1,
+};
 
 describe("architectureToGraph", () => {
   it("creates stable ordered neuron IDs and dense adjacent-layer edges", () => {
@@ -41,5 +54,32 @@ describe("architectureToGraph", () => {
     expect(hidden.at(-1)?.id).toBe("hidden-0-overflow");
     expect(hidden.at(-1)?.data.width).toBe(256);
     expect(hidden.at(-1)?.ariaLabel).toContain("233 additional neurons hidden");
+  });
+
+  it("maps observed activations and propagation state without inventing edge strength", () => {
+    const graph = architectureToGraph(architecture([3]), trace, 1);
+    const input = graph.nodes.find((node) => node.id === "input-0")!;
+    const active = graph.nodes.find((node) => node.id === "hidden-0-2")!;
+    const output = graph.nodes.find((node) => node.id === "output-0")!;
+
+    expect(input.data.flowState).toBe("settled");
+    expect(active.data).toMatchObject({ observedValue: 2, signalLevel: 1, signalSign: "positive", flowState: "active" });
+    expect(active.ariaLabel).toContain("observed activation 2.0000");
+    expect(output.data.flowState).toBe("queued");
+    expect(graph.edges.find((edge) => edge.source === "input-0")?.data).toEqual({ flowState: "active" });
+    expect(graph.edges.every((edge) => !("weight" in (edge.data ?? {})))).toBe(true);
+  });
+
+  it("labels overflow evidence as an aggregate for wide layers", () => {
+    const wideTrace: ForwardPassTrace = {
+      ...trace,
+      layers: [
+        { layer_name: "hidden_0", activation_name: "relu", pre_activations: Array(256).fill(1), activations: Array.from({ length: 256 }, (_, index) => index) },
+        trace.layers[1]!,
+      ],
+    };
+    const overflow = architectureToGraph(architecture([256]), wideTrace, 1).nodes.find((node) => node.id === "hidden-0-overflow")!;
+    expect(overflow.data.isAggregate).toBe(true);
+    expect(overflow.ariaLabel).toContain("mean absolute activation");
   });
 });

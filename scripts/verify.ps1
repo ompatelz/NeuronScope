@@ -20,7 +20,7 @@ function Invoke-Checked {
 
 Push-Location (Join-Path $root "backend")
 try {
-    Invoke-Checked { uv sync --all-groups } "Backend dependency sync"
+    Invoke-Checked { uv sync --all-groups --locked } "Backend dependency sync"
     Invoke-Checked { uv run ruff check . } "Backend lint"
     Invoke-Checked { uv run ruff format --check . } "Backend format check"
     Invoke-Checked { uv run mypy src } "Backend type check"

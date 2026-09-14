@@ -1,38 +1,37 @@
 import { Tabs } from "@base-ui/react/tabs";
 import {
   Activity, AlertCircle, BarChart3, Binary, Braces, Bug, CheckCircle2,
-  CirclePlay, Database, LoaderCircle, Network, SlidersHorizontal,
+  ChevronDown, CirclePlay, Database, FlaskConical, Gauge, GripVertical,
+  LoaderCircle, Network, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
   createExperiment,
+  isBrowserDemoEnabled,
   type ActivationName, type DatasetKind, type ExperimentRequest,
   type ExperimentResponse, type InitializationName, type OptimizerName,
   type PlaybackSnapshot,
 } from "./api/experiments";
+import { createBrowserDemoExperiment } from "./api/browserDemo";
 import { DecisionBoundary } from "./components/decisionBoundary";
 import { DiagnosticsPanel } from "./components/diagnosticsPanel";
 import { LayerSignals } from "./components/layerSignals";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
 import { PlaybackScrubber } from "./components/playbackScrubber";
 import { appendRun, resolveRunResult, RunComparison, type RunRecord } from "./components/runComparison";
-import { TrainingMetricsChart } from "./components/trainingMetrics";
-import { parseHiddenLayers, validateConfig, type ConfigValidationError } from "./config";
+import {
+  estimateParameterCount, parseHiddenLayers, validateConfig,
+  type ConfigValidationError, type WorkbenchConfig,
+} from "./config";
+import { experimentPresets, initialConfig, type ExperimentPreset } from "./presets";
 
-interface WorkbenchConfig {
-  dataset: DatasetKind;
-  samples: number;
-  noise: number;
-  seed: number;
-  hiddenLayers: string;
-  activation: ActivationName;
-  initialization: InitializationName;
-  optimizer: OptimizerName;
-  learningRate: number;
-  epochs: number;
-}
+const TrainingMetricsChart = lazy(() => import("./components/trainingMetrics").then((module) => ({
+  default: module.TrainingMetricsChart,
+})));
+const browserDemo = isBrowserDemoEnabled();
 
 type RunState =
   | { status: "idle" }
@@ -40,12 +39,6 @@ type RunState =
   | { status: "cancelled" }
   | { status: "error"; message: string }
   | { status: "completed"; result: ExperimentResponse };
-
-const initialConfig: WorkbenchConfig = {
-  dataset: "two_moons", samples: 200, noise: 0.12, seed: 42,
-  hiddenLayers: "8, 8", activation: "relu", initialization: "he",
-  optimizer: "adam", learningRate: 0.01, epochs: 200,
-};
 
 function buildRequest(config: WorkbenchConfig): ExperimentRequest {
   return {
@@ -58,8 +51,14 @@ function buildRequest(config: WorkbenchConfig): ExperimentRequest {
       optimizer: config.optimizer, learning_rate: config.learningRate,
       epochs: config.epochs, instrumentation: true,
     },
-    boundary: { resolution: 48 },
-    playback: { max_snapshots: 12 },
+    boundary: { resolution: config.boundaryResolution },
+    diagnostics: {
+      consecutive_epochs: config.diagnosticWindow,
+      vanishing_gradient_norm: config.vanishingGradientNorm,
+      exploding_gradient_norm: config.explodingGradientNorm,
+      dead_relu_zero_percentage: config.deadReluPercentage,
+    },
+    playback: { max_snapshots: config.playbackSnapshots, trace_sample_index: config.traceSample - 1 },
   };
 }
 
@@ -76,9 +75,10 @@ function Heading({ icon: Icon, title, description }: { icon: LucideIcon; title: 
   );
 }
 
-function Configuration({ config, onChange, error }: {
+function Configuration({ config, onChange, onPreset, error }: {
   config: WorkbenchConfig;
   onChange: <K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) => void;
+  onPreset: (preset: ExperimentPreset) => void;
   error: ConfigValidationError | null;
 }) {
   const invalid = (field: ConfigValidationError["field"]) => error?.field === field;
@@ -86,6 +86,18 @@ function Configuration({ config, onChange, error }: {
   return (
     <aside className="config-rail" aria-label="Experiment configuration">
       <Heading icon={SlidersHorizontal} title="Configuration" description="One synchronous observed run" />
+      <section className="preset-library" aria-labelledby="preset-library-title">
+        <div className="preset-library-heading">
+          <div><FlaskConical aria-hidden="true" /><span id="preset-library-title">Experiment library</span></div>
+          <code>{estimateParameterCount(config.hiddenLayers)?.toLocaleString() ?? "—"} params</code>
+        </div>
+        <div className="preset-grid">{experimentPresets.map((preset) => <button
+          key={preset.id}
+          type="button"
+          title={preset.intent}
+          onClick={() => onPreset(preset)}
+        ><strong>{preset.name}</strong><span>{preset.description}</span></button>)}</div>
+      </section>
       {error && <p id="configuration-error" className="configuration-error" role="alert"><AlertCircle aria-hidden="true" />{error.message}</p>}
       <fieldset className="control-group">
         <legend><Database /> Dataset</legend>
@@ -125,6 +137,23 @@ function Configuration({ config, onChange, error }: {
           <Field label="Epochs"><input type="number" min="1" max="5000" value={config.epochs} aria-invalid={invalid("epochs")} aria-describedby={describedBy("epochs")} onChange={(e) => onChange("epochs", e.target.valueAsNumber)} /></Field>
         </div>
       </fieldset>
+
+      <details className="advanced-controls">
+        <summary><span><Gauge aria-hidden="true" /> Advanced runtime</span><ChevronDown aria-hidden="true" /></summary>
+        <div className="advanced-controls-body">
+          <div className="control-pair">
+            <Field label="Boundary grid" hint="24–80 cells per axis"><input type="number" min="24" max="80" value={config.boundaryResolution} aria-invalid={invalid("boundaryResolution")} aria-describedby={describedBy("boundaryResolution")} onChange={(e) => onChange("boundaryResolution", e.target.valueAsNumber)} /></Field>
+            <Field label="Playback frames" hint="2–24 retained epochs"><input type="number" min="2" max="24" value={config.playbackSnapshots} aria-invalid={invalid("playbackSnapshots")} aria-describedby={describedBy("playbackSnapshots")} onChange={(e) => onChange("playbackSnapshots", e.target.valueAsNumber)} /></Field>
+          </div>
+          <Field label="Forward-pass sample" hint={`Dataset row 1–${config.samples}`}><input type="number" min="1" max={config.samples} value={config.traceSample} aria-invalid={invalid("traceSample")} aria-describedby={describedBy("traceSample")} onChange={(e) => onChange("traceSample", e.target.valueAsNumber)} /></Field>
+          <Field label="Diagnostic window" hint="Consecutive observations required"><input type="number" min="2" max="20" value={config.diagnosticWindow} aria-invalid={invalid("diagnosticWindow")} aria-describedby={describedBy("diagnosticWindow")} onChange={(e) => onChange("diagnosticWindow", e.target.valueAsNumber)} /></Field>
+          <div className="control-pair">
+            <Field label="Vanishing norm"><input type="number" min="0.000000001" step="0.000001" value={config.vanishingGradientNorm} aria-invalid={invalid("vanishingGradientNorm")} aria-describedby={describedBy("vanishingGradientNorm")} onChange={(e) => onChange("vanishingGradientNorm", e.target.valueAsNumber)} /></Field>
+            <Field label="Exploding norm"><input type="number" min="0.000001" step="1" value={config.explodingGradientNorm} aria-invalid={invalid("explodingGradientNorm")} aria-describedby={describedBy("explodingGradientNorm")} onChange={(e) => onChange("explodingGradientNorm", e.target.valueAsNumber)} /></Field>
+          </div>
+          <Field label="Dead ReLU threshold" hint="Percentage of zero activations"><input type="number" min="0" max="100" step="1" value={config.deadReluPercentage} aria-invalid={invalid("deadReluPercentage")} aria-describedby={describedBy("deadReluPercentage")} onChange={(e) => onChange("deadReluPercentage", e.target.valueAsNumber)} /></Field>
+        </div>
+      </details>
     </aside>
   );
 }
@@ -134,7 +163,7 @@ function StateSummary({ state }: { state: RunState }) {
     : state.status === "cancelled" ? [AlertCircle, "Run cancelled", "No result was recorded. You can adjust the configuration and run again."] as const
     : state.status === "error" ? [AlertCircle, "Run failed", state.message] as const
     : state.status === "completed" ? [CheckCircle2, "Run completed", `Accuracy ${(state.result.training.final_accuracy * 100).toFixed(1)}% · Loss ${state.result.training.final_loss.toFixed(4)}`] as const
-    : [CirclePlay, "Ready to train", "Review the configuration, then start a real run."] as const;
+    : [CirclePlay, "Ready to train", browserDemo ? "GitHub Pages demo mode runs a lightweight browser simulation." : "Review the configuration, then start a real run."] as const;
   const [Icon, title, text] = contents;
   return (
     <div className={`state-summary state-${state.status}`} role={state.status === "error" ? "alert" : "status"}>
@@ -148,7 +177,7 @@ function EmptyStage({ icon: Icon, title, text }: { icon: LucideIcon; title: stri
   return <div className="empty-stage"><Icon aria-hidden="true" /><strong>{title}</strong><p>{text}</p></div>;
 }
 
-function Stage({ state, onSelect, snapshot }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void; snapshot: PlaybackSnapshot | null }) {
+function Stage({ state, onSelect, snapshot, traceKey }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void; snapshot: PlaybackSnapshot | null; traceKey: string }) {
   const result = state.status === "completed" ? state.result : null;
   const boundary = result && snapshot ? {
     resolution: result.playback.resolution,
@@ -164,12 +193,12 @@ function Stage({ state, onSelect, snapshot }: { state: RunState; onSelect: (node
           <Tabs.Tab value="boundary"><Braces /> Boundary</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="network" className="stage-panel">
-          {result ? <NetworkGraph architecture={result.architecture} onSelect={onSelect} />
+          {result && snapshot ? <NetworkGraph key={traceKey} architecture={result.architecture} trace={snapshot.forward_pass} epoch={snapshot.epoch} onSelect={onSelect} />
             : <EmptyStage icon={Network} title="No observed architecture yet" text="Run an experiment to inspect the architecture returned by the training API." />}
         </Tabs.Panel>
         <Tabs.Panel value="boundary" className="stage-panel">
           {result && boundary ? <DecisionBoundary boundary={boundary} points={result.dataset.points} />
-            : <EmptyStage icon={Braces} title="No decision boundary yet" text="A prediction grid will appear here when that real capability is implemented." />}
+            : <EmptyStage icon={Braces} title="No decision boundary yet" text="Run an experiment to inspect its observed prediction grid." />}
         </Tabs.Panel>
       </Tabs.Root>
     </section>
@@ -199,6 +228,7 @@ function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearR
             <div><dt>Neuron</dt><dd>{selected.neuronIndex === null ? "Summary" : selected.neuronIndex + 1}</dd></div>
             <div><dt>Layer width</dt><dd>{selected.width}</dd></div>
             <div><dt>Activation</dt><dd>{selected.activation ?? "None"}</dd></div>
+            <div><dt>Observed value</dt><dd>{selected.observedValue === null || selected.observedValue === undefined ? "Unavailable" : selected.observedValue.toFixed(5)}</dd></div>
             <div><dt>Layer parameters</dt><dd>{selected.parameterCount.toLocaleString()}</dd></div>
           </dl>{result && <LayerSignals instrumentation={snapshot?.instrumentation ? [snapshot.instrumentation] : result.training.instrumentation} selectedLayerName={selectedLayerName} />}</> : result ? <><p className="panel-copy">Select a neuron to focus its signals. All learned layers are shown below.</p><dl className="data-list">
             <div><dt>Dense layers</dt><dd>{result.architecture.layers.length}</dd></div>
@@ -224,13 +254,28 @@ function Metrics({ state, snapshot, onSelectEpoch }: { state: RunState; snapshot
     <section className="metrics-dock" aria-label="Metrics history">
       <Heading icon={BarChart3} title="Metrics history" description="Raw observations, newest last" />
       {result && snapshot && <PlaybackScrubber playback={result.playback} selectedEpoch={snapshot.epoch} onSelect={onSelectEpoch} />}
-      {observedTraining ? <TrainingMetricsChart training={observedTraining} />
+      {observedTraining ? <Suspense fallback={<p className="panel-copy">Loading interactive metrics…</p>}><TrainingMetricsChart training={observedTraining} /></Suspense>
         : <p className="panel-copy">Loss and accuracy observations appear after a completed run.</p>}
     </section>
   );
 }
 
+function useDesktopWorkbench(): boolean {
+  const query = "(min-width: 1024px)";
+  const [matches, setMatches] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(query);
+    const updateMatch = () => setMatches(media.matches);
+    updateMatch();
+    media.addEventListener("change", updateMatch);
+    return () => media.removeEventListener("change", updateMatch);
+  }, []);
+  return matches;
+}
+
 export function App() {
+  const desktopWorkbench = useDesktopWorkbench();
   const [config, setConfig] = useState(initialConfig);
   const [state, setState] = useState<RunState>({ status: "idle" });
   const [selectedNode, setSelectedNode] = useState<ArchitectureNodeData | null>(null);
@@ -246,9 +291,14 @@ export function App() {
     requestController.current?.abort();
   }, []);
   function update<K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) {
+    if (state.status === "loading") {
+      requestSequence.current += 1;
+      requestController.current?.abort();
+      requestController.current = null;
+    }
     setConfig((current) => ({ ...current, [key]: value }));
     setConfigError((current) => current?.field === key ? null : current);
-    setState((current) => current.status === "error" || current.status === "cancelled" ? { status: "idle" } : current);
+    setState((current) => current.status === "loading" || current.status === "error" || current.status === "cancelled" ? { status: "idle" } : current);
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,7 +322,9 @@ export function App() {
     const requestId = ++requestSequence.current;
     setState({ status: "loading" });
     try {
-      const result = await createExperiment(request, controller.signal);
+      const result = browserDemo
+        ? await createBrowserDemoExperiment(request)
+        : await createExperiment(request, controller.signal);
       if (requestId !== requestSequence.current) return;
       const id = nextRunId.current;
       nextRunId.current += 1;
@@ -304,17 +356,45 @@ export function App() {
     requestController.current = null;
     setState({ status: "cancelled" });
   }
+  function applyPreset(preset: ExperimentPreset) {
+    if (state.status === "loading") {
+      requestSequence.current += 1;
+      requestController.current?.abort();
+      requestController.current = null;
+    }
+    setConfig({ ...preset.config });
+    setConfigError(null);
+    setSelectedNode(null);
+    setSelectedPlaybackEpoch(null);
+    setState({ status: "idle" });
+  }
+  const configuration = <Configuration config={config} onChange={update} onPreset={applyPreset} error={configError} />;
+  const stage = <Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} traceKey={`${selectedRunId ?? "latest"}-${playbackSnapshot?.epoch ?? "none"}`} />;
+  const inspector = <Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); setSelectedPlaybackEpoch(null); }} onClearRuns={clearRuns} snapshot={playbackSnapshot} />;
+  const metrics = <Metrics state={displayState} snapshot={playbackSnapshot} onSelectEpoch={setSelectedPlaybackEpoch} />;
   return (
     <main className="app-shell"><form onSubmit={submit} noValidate aria-busy={state.status === "loading"}>
       <header className="command-bar">
-        <div className="brand-lockup"><Activity aria-hidden="true" /><span>NeuronScope</span><small>Training debugger</small></div>
+        <div className="brand-lockup"><Activity aria-hidden="true" /><span>NeuronScope</span><small>{browserDemo ? "Browser demo" : "Training debugger"}</small></div>
         <div className="run-controls"><span className={`status-dot status-${state.status}`} /><span className="status-label">{state.status}</span>
           {state.status === "loading" ? <button className="run-button cancel-button" type="button" onClick={cancelRun}><AlertCircle />Cancel run</button>
             : <button className="run-button" type="submit"><CirclePlay />Run experiment</button>}
         </div>
       </header>
       <StateSummary state={state} />
-      <div className="workbench-grid"><Configuration config={config} onChange={update} error={configError} /><Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} /><Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); setSelectedPlaybackEpoch(null); }} onClearRuns={clearRuns} snapshot={playbackSnapshot} /><Metrics state={displayState} snapshot={playbackSnapshot} onSelectEpoch={setSelectedPlaybackEpoch} /></div>
+      {desktopWorkbench ? <Group className="workbench-resizable" orientation="vertical">
+        <Panel defaultSize="72%" minSize="420px">
+          <Group className="workbench-row" orientation="horizontal">
+            <Panel defaultSize="22%" minSize="250px" maxSize="390px">{configuration}</Panel>
+            <Separator className="resize-separator vertical"><GripVertical aria-hidden="true" /></Separator>
+            <Panel defaultSize="53%" minSize="420px">{stage}</Panel>
+            <Separator className="resize-separator vertical"><GripVertical aria-hidden="true" /></Separator>
+            <Panel defaultSize="25%" minSize="280px" maxSize="440px">{inspector}</Panel>
+          </Group>
+        </Panel>
+        <Separator className="resize-separator horizontal"><span /></Separator>
+        <Panel defaultSize="28%" minSize="220px" maxSize="430px">{metrics}</Panel>
+      </Group> : <div className="workbench-grid">{configuration}{stage}{inspector}{metrics}</div>}
     </form></main>
   );
 }

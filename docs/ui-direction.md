@@ -5,16 +5,18 @@
 - **React + Vite + TypeScript** for a compact, client-first instrument panel.
 - **Tailwind CSS v4** for local design tokens and responsive composition.
 - **Base UI** for accessible, unstyled interaction primitives; **Lucide** for a restrained icon set.
+- **Recharts 3** for responsive, keyboard-aware metric inspection with real tooltips and dual axes.
+- **react-resizable-panels 4** for an IDE-style desktop layout with accessible separators.
 - **shadcn/ui** is a source-owned registry we may selectively adopt when a concrete control is needed; its components are copied into this repository rather than hidden behind a design-system dependency.
 
 ## Added only when real data required it
 
 - **React Flow:** introduced for the real model architecture graph, with fixed presentation-only
   layout and bounded visible neurons.
-- **Native SVG:** selected for the decision boundary and compact metrics plots, avoiding a chart
-  dependency when the required visual transformations are small and testable.
-- **Motion:** remains unnecessary; CSS transitions respect reduced-motion preferences and no
-  decorative entrance animation was added.
+- **Native SVG:** retained for the decision boundary, where a bounded probability raster and sample
+  overlay are more direct than a general chart abstraction.
+- **Motion:** remains unnecessary; the network uses small state-driven CSS transitions and one
+  propagation dash animation, all suppressed by reduced-motion preferences.
 - **Radix:** remains a mature alternative, but Base UI already supplies the project's accessible
   unstyled primitives. Mixing primitive systems would add cost without a current need.
 
@@ -22,15 +24,21 @@
 
 The application uses a seam-based instrument layout rather than a dashboard of detached cards:
 
-- a 280 px configuration rail owns dataset, network, and training controls;
+- a resizable configuration rail owns presets plus dataset, network, training, and advanced controls;
 - the flexible center stage switches between Network and Boundary views;
 - a 320 px inspector switches between Selection and Diagnostics evidence;
 - a bottom dock owns raw metrics history.
 
-Below desktop width, panels reflow into two columns and then one continuous mobile column. Base UI
+On desktop, keyboard-accessible separators let the user resize the control, visualization,
+inspector, and metrics regions. Below desktop width, panels reflow into two columns and then one continuous mobile column. Base UI
 Tabs provide keyboard navigation and focus behavior. Native labeled inputs preserve browser validation.
 `POST /api/v1/experiments` is the only source of run summaries; idle, loading, error, and completed
 states remain explicit, and unavailable visualizations say so instead of displaying sample telemetry.
+
+Four experiment presets provide deliberate starting points: a healthy ReLU baseline, a spiral
+challenge, a deep-sigmoid gradient stress run, and an aggressive ReLU stress run. Presets only fill
+real configuration fields; they never promise a warning or inject telemetry. Advanced controls expose
+decision-grid density, playback sampling, the forward-trace sample, diagnostic persistence, and diagnostic thresholds.
 
 ## Network graph
 
@@ -41,10 +49,19 @@ inspector reports the selected neuron's layer, index, width, activation, and lay
 Very wide layers retain their real count while collapsing excess visual nodes, avoiding an unbounded
 DOM and edge explosion. Graph layout remains presentation logic and never changes model execution.
 
+Each retained training epoch also carries a bounded forward trace for one user-selected dataset row.
+The graph player advances through the exact input values, hidden-layer activations, output sigmoid,
+and predicted class captured from that PyTorch model state. Positive and negative activations use
+different colors, magnitude controls intensity, and zero ReLU activations remain visibly dormant.
+Play, pause, restart, step, and speed controls keep the computation inspectable; reduced-motion mode
+opens at the settled output and retains manual stepping. Because weights and per-edge contributions
+are intentionally not serialized, traveling edge dashes communicate execution order only. The UI
+states that boundary explicitly instead of presenting the animation as edge strength.
+
 ## Training metrics
 
-The metrics dock uses a lightweight SVG with separate loss and accuracy bands, preserving every raw
-epoch observation without curve smoothing. Each point exposes its exact value, while a semantic table
+The metrics dock uses Recharts with independent loss and accuracy axes, responsive sizing, keyboard
+navigation, and pointer tooltips while preserving every raw epoch observation without smoothing. A semantic table
 keeps the most recent observations available without relying on color or pointer interaction. Final
 loss, accuracy, epoch progress, optimizer, and learning rate are taken directly from the completed
 training response. No chart is rendered for idle, loading, failed, or empty-history states.

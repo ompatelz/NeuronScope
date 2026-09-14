@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { parseHiddenLayers, validateConfig } from "./config";
+import { estimateParameterCount, parseHiddenLayers, validateConfig } from "./config";
 
 class ResizeObserverStub {
   observe() {}
@@ -17,8 +17,8 @@ const response = {
   boundary: { resolution: 2, x_coordinates: [0, 39], y_coordinates: [-1, 1], probabilities: [0.1, 0.2, 0.8, 0.9] },
   diagnostics: [],
   playback: { resolution: 2, x_coordinates: [0, 39], y_coordinates: [-1, 1], snapshots: [
-    { epoch: 1, metrics: { epoch: 1, loss: 0.7, accuracy: 0.5 }, instrumentation: null, probabilities: [0.2, 0.3, 0.7, 0.8] },
-    { epoch: 2, metrics: { epoch: 2, loss: 0.25, accuracy: 0.9 }, instrumentation: null, probabilities: [0.1, 0.2, 0.8, 0.9] },
+    { epoch: 1, metrics: { epoch: 1, loss: 0.7, accuracy: 0.5 }, instrumentation: null, probabilities: [0.2, 0.3, 0.7, 0.8], forward_pass: { sample_index: 0, input_values: [0, 0], expected_label: 0, layers: [{ layer_name: "hidden_0", activation_name: "relu", pre_activations: [-1, 0.2, 0, 0.8], activations: [0, 0.2, 0, 0.8] }, { layer_name: "output", activation_name: "sigmoid", pre_activations: [-0.4], activations: [0.4] }], output_logit: -0.4, predicted_probability: 0.4, predicted_label: 0 } },
+    { epoch: 2, metrics: { epoch: 2, loss: 0.25, accuracy: 0.9 }, instrumentation: null, probabilities: [0.1, 0.2, 0.8, 0.9], forward_pass: { sample_index: 0, input_values: [0, 0], expected_label: 0, layers: [{ layer_name: "hidden_0", activation_name: "relu", pre_activations: [-1, 0.5, 0, 1.2], activations: [0, 0.5, 0, 1.2] }, { layer_name: "output", activation_name: "sigmoid", pre_activations: [-1.4], activations: [0.2] }], output_logit: -1.4, predicted_probability: 0.2, predicted_label: 0 } },
   ] },
 };
 
@@ -36,6 +36,19 @@ describe("App", () => {
     expect(screen.getByLabelText("Optimizer")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Run experiment" })).toBeTruthy();
     expect(screen.getByText("No observed architecture yet")).toBeTruthy();
+    expect(screen.getByText("105 params")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Spiral challenge/i })).toBeTruthy();
+  });
+
+  it("applies a complex experiment preset without starting a request", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Gradient stress/i }));
+    expect((screen.getByLabelText("Hidden layers") as HTMLInputElement).value).toBe("16, 16, 16, 16, 16, 16");
+    expect((screen.getByLabelText("Activation") as HTMLSelectElement).value).toBe("sigmoid");
+    expect(screen.getByText("1,425 params")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("posts selected configuration and presents observed results", async () => {
@@ -48,20 +61,20 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Epochs"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Run experiment" }));
     await screen.findByText("Run completed");
-    expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(2);
+    await waitFor(() => expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(1));
     expect(screen.getByText("h1.1")).toBeTruthy();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body)) as { dataset: { samples: number }; model: { hidden_layers: number[] }; training: { epochs: number } };
     expect(body.dataset.samples).toBe(40);
     expect(body.model.hidden_layers).toEqual([4]);
     expect(body.training.epochs).toBe(2);
-    const neuron = await screen.findByLabelText("Hidden 1, neuron 1 of 4");
+    const neuron = await screen.findByLabelText(/Hidden 1, neuron 1 of 4/);
     fireEvent.click(neuron);
     expect(screen.getByText("Hidden 1 · h1.1")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Boundary" }));
     expect(screen.getByRole("img", { name: /^Final model decision boundary/ })).toBeTruthy();
     fireEvent.change(screen.getByRole("slider", { name: "Training playback epoch" }), { target: { value: "1" } });
-    expect(screen.getByLabelText("Run progress and final metrics").textContent).toContain("50.0%");
+    expect(screen.getByText("Recorded epoch 1")).toBeTruthy();
   });
 
   it("shows API failures as an alert", async () => {
@@ -138,11 +151,20 @@ describe("parseHiddenLayers", () => {
   });
 
   it("validates every bounded numeric control before serialization", () => {
-    const valid = { samples: 200, noise: 0.1, seed: 42, hiddenLayers: "8, 8", learningRate: 0.01, epochs: 200 };
+    const valid = {
+      samples: 200, noise: 0.1, seed: 42, hiddenLayers: "8, 8", learningRate: 0.01,
+      epochs: 200, boundaryResolution: 48, playbackSnapshots: 12, traceSample: 1, diagnosticWindow: 3,
+      vanishingGradientNorm: 1e-6, explodingGradientNorm: 100, deadReluPercentage: 95,
+    };
     expect(validateConfig(valid)).toBeNull();
     expect(validateConfig({ ...valid, samples: Number.NaN })?.field).toBe("samples");
     expect(validateConfig({ ...valid, noise: 0.6 })?.field).toBe("noise");
     expect(validateConfig({ ...valid, learningRate: 0 })?.field).toBe("learningRate");
     expect(validateConfig({ ...valid, epochs: 5001 })?.field).toBe("epochs");
+    expect(validateConfig({ ...valid, boundaryResolution: 81 })?.field).toBe("boundaryResolution");
+    expect(validateConfig({ ...valid, playbackSnapshots: 1 })?.field).toBe("playbackSnapshots");
+    expect(validateConfig({ ...valid, deadReluPercentage: 101 })?.field).toBe("deadReluPercentage");
+    expect(estimateParameterCount("8, 8")).toBe(105);
+    expect(estimateParameterCount("8, 0")).toBeNull();
   });
 });

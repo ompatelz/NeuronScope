@@ -55,8 +55,9 @@ sequenceDiagram
     OBS-->>SVC: Detached scalar summaries
     SVC->>SVC: Evaluate diagnostics and decision grids
     SVC->>SVC: Assemble selected playback epochs
+    SVC->>ML: Trace one validated sample through each selected state
     SVC-->>API: ExperimentResponse
-    API-->>UI: Points, architecture, metrics, signals, diagnostics, grids
+    API-->>UI: Points, architecture, metrics, signals, traces, diagnostics, grids
 ```
 
 Pydantic rejects invalid dataset sizes, layer counts and widths, learning rates, epoch counts,
@@ -74,8 +75,9 @@ graphs.
 
 Playback selects the first epoch, final epoch, and a capped set of evenly spaced epochs between
 them. Only those temporary model states are cloned on CPU. The service evaluates each selected state
-on one bounded coordinate grid, restores the final model, and returns probabilities plus scalar
-observations—not parameters or arbitrary tensors.
+on one bounded coordinate grid and traces one validated dataset sample through every learned layer.
+The final model is restored before the service returns probabilities, scalar observations, and that
+bounded input-specific trace—not parameters, edge weights, or arbitrary tensors.
 
 Diagnostics remain downstream of raw observations:
 
@@ -93,7 +95,7 @@ claims of universal mathematical truth.
 - `App.tsx` owns configuration, request lifecycle, cancellation, completed-run selection, and panel
   composition.
 - `components/networkGraph.tsx` transforms real architecture metadata into bounded React Flow nodes
-  and edges.
+  and edges, then animates the selected sample's observed activations through them.
 - Boundary, metrics, layer-signal, diagnostic, playback, and run-comparison components render only
   response data supplied to them.
 - Configuration parsing and validation are pure functions shared with component tests.
@@ -111,7 +113,8 @@ bit-for-bit equality is not promised.
 
 The intentional bounds—2D generated data, binary output, at most 2,000 samples, at most eight
 256-neuron hidden layers, at most 5,000 epochs, an 80-by-80 decision grid, and at most 24 playback
-snapshots—keep synchronous execution and response size appropriate for an educational debugger.
+snapshots with one forward trace each—keep synchronous execution and response size appropriate for
+an educational debugger.
 
 Arbitrary uploaded PyTorch models are outside the current trust boundary. Supporting them later
 requires an explicit design for serialization, dependency isolation, resource control, and untrusted

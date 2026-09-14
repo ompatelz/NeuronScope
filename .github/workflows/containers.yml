@@ -3,21 +3,41 @@ name: Container CI
 on:
   pull_request:
     paths:
+      - "backend/src/**"
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
       - "backend/Dockerfile"
       - "backend/.dockerignore"
+      - "frontend/src/**"
+      - "frontend/index.html"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/vite.config.ts"
       - "frontend/Dockerfile"
       - "frontend/.dockerignore"
       - "frontend/nginx.conf"
+      - "Dockerfile"
+      - ".dockerignore"
       - "compose.yaml"
       - ".github/workflows/containers.yml"
   push:
     branches: [main]
     paths:
+      - "backend/src/**"
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
       - "backend/Dockerfile"
       - "backend/.dockerignore"
+      - "frontend/src/**"
+      - "frontend/index.html"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/vite.config.ts"
       - "frontend/Dockerfile"
       - "frontend/.dockerignore"
       - "frontend/nginx.conf"
+      - "Dockerfile"
+      - ".dockerignore"
       - "compose.yaml"
       - ".github/workflows/containers.yml"
 
@@ -31,8 +51,66 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
+      - name: Build single-service public image
+        run: docker build --tag neuronscope-single .
       - run: docker compose build
+      - name: Start production stack
+        run: docker compose up --detach --wait --wait-timeout 120
+      - name: Smoke-test public routes and security headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error http://127.0.0.1:8080/ >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8080/healthz | grep --fixed-strings "ok"
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health \
+            | python3 -c 'import json, sys; assert json.load(sys.stdin) == {"status": "ok"}'
+          curl --fail --silent --show-error \
+            --header "Content-Type: application/json" \
+            --data '{"dataset":{"kind":"xor","samples":40,"seed":3},"model":{"input_size":2,"hidden_layers":[4],"output_size":1,"seed":3},"training":{"epochs":1},"boundary":{"resolution":24},"playback":{"max_snapshots":2,"trace_sample_index":0}}' \
+            http://127.0.0.1:8080/api/v1/experiments \
+            | python3 -c 'import json, sys; body=json.load(sys.stdin); assert len(body["dataset"]["points"]) == 40; assert body["training"]["history"][-1]["epoch"] == 1'
+          headers="$(curl --fail --silent --show-error --head http://127.0.0.1:8080/)"
+          grep --ignore-case '^content-security-policy:' <<<"$headers"
+          grep --ignore-case '^permissions-policy:' <<<"$headers"
+          grep --ignore-case '^x-content-type-options: nosniff' <<<"$headers"
+          grep --ignore-case '^x-frame-options: DENY' <<<"$headers"
+          grep --ignore-case '^cache-control: no-cache' <<<"$headers"
+      - name: Smoke-test single-service public image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name neuronscope-single-smoke \
+            --publish 127.0.0.1:8090:8000 --memory 2g --cpus 1 neuronscope-single
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8090/api/v1/health >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == 30 ]]; then
+              docker logs neuronscope-single-smoke
+              exit 1
+            fi
+            sleep 2
+          done
+          curl --fail --silent --show-error http://127.0.0.1:8090/ \
+            | grep --fixed-strings '<div id="root"></div>'
+          curl --fail --silent --show-error \
+            --header "Content-Type: application/json" \
+            --data '{"dataset":{"kind":"xor","samples":40,"seed":3},"model":{"input_size":2,"hidden_layers":[4],"output_size":1,"seed":3},"training":{"epochs":1},"boundary":{"resolution":24},"playback":{"max_snapshots":2,"trace_sample_index":0}}' \
+            http://127.0.0.1:8090/api/v1/experiments \
+            | python3 -c 'import json, sys; assert json.load(sys.stdin)["training"]["history"][-1]["epoch"] == 1'
+          curl --fail --silent --show-error --head http://127.0.0.1:8090/ \
+            | grep --ignore-case '^content-security-policy:'
+      - name: Container status and logs
+        if: always()
+        run: |
+          docker compose ps
+          docker compose logs --no-color
+      - name: Stop production stack
+        if: always()
+        run: |
+          docker rm --force neuronscope-single-smoke 2>/dev/null || true
+          docker compose down --volumes

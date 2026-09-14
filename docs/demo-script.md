@@ -40,6 +40,10 @@ When it completes:
 Move the training-playback slider from the first recorded epoch toward the final epoch. Show how the
 decision boundary, metrics, and available instrumentation correspond to the selected snapshot.
 
+Return to Network and replay the observed forward pass. Pause on a hidden layer, point out the real
+signed activation values and dormant ReLU units, then step to the settled class probability. Clarify
+that the edge pulse shows execution order; it is not a visualization of weight strength.
+
 Explain that NeuronScope stores only a capped set of selected CPU model states during training,
 converts them into public scalar/grid data, restores the final model, and never sends model weights
 to the browser.
