@@ -136,6 +136,21 @@ Open <http://127.0.0.1:5173>. Vite proxies `/api` requests to the FastAPI servic
 <http://127.0.0.1:8000>. The health endpoint is `/api/v1/health`, and interactive API documentation
 is available at <http://127.0.0.1:8000/docs>.
 
+### Production website image
+
+The root Dockerfile builds the React application and serves it from FastAPI as one deployable,
+same-origin website. Build and run the exact public image locally with:
+
+```powershell
+docker build --tag neuronscope .
+docker run --rm --publish 8000:8000 --memory 2g --cpus 1 neuronscope
+```
+
+Open <http://127.0.0.1:8000>. The public API has an aggregate compute budget and admits only one
+experiment at a time; excess concurrent requests receive `429` with a retry hint. See the
+[deployment guide](docs/deployment.md) for the recommended Railway setup, cost controls, health
+checks, domains, and rollback procedure.
+
 ## Experiment model
 
 The workbench sends one bounded request to `POST /api/v1/experiments`:

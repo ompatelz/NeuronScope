@@ -10,6 +10,18 @@ from neuronscope.instrumentation import EpochInstrumentation
 from neuronscope.models import MLPArchitecture, MLPConfig
 from neuronscope.training import EpochMetrics, TrainingConfig, TrainingResult
 
+MAX_EXPERIMENT_WORK_UNITS = 1_000_000_000
+
+
+def _parameter_count(config: MLPConfig) -> int:
+    """Return the number of trainable weights and biases in an MLP configuration."""
+
+    widths = (config.input_size, *config.hidden_layers, config.output_size)
+    return sum(
+        input_width * output_width + output_width
+        for input_width, output_width in zip(widths[:-1], widths[1:], strict=True)
+    )
+
 
 class DecisionBoundaryConfig(BaseModel):
     """Bounded controls for final model-grid inference."""
@@ -109,6 +121,16 @@ class ExperimentRequest(BaseModel):
             )
         if self.playback.trace_sample_index >= self.dataset.samples:
             raise ValueError("Trace sample index must refer to a generated dataset point.")
+
+        parameters = _parameter_count(self.model)
+        training_work = self.dataset.samples * self.training.epochs
+        inference_work = self.boundary.resolution**2 * (self.playback.max_snapshots + 1)
+        workload = parameters * (training_work + inference_work)
+        if workload > MAX_EXPERIMENT_WORK_UNITS:
+            raise ValueError(
+                "Experiment workload exceeds the public execution budget; reduce samples, "
+                "epochs, layer widths, playback snapshots, or boundary resolution."
+            )
         return self
 
 

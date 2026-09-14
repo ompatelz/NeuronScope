@@ -17,6 +17,8 @@ from neuronscope.training.schemas import (
     TrainingResult,
 )
 
+torch.set_num_threads(1)
+
 
 @dataclass(frozen=True)
 class TrainingRun:

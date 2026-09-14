@@ -1,6 +1,7 @@
 """Configuration loaded from the environment at process startup."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
 
     app_name: str = "NeuronScope API"
     api_v1_prefix: str = "/api/v1"
+    frontend_dist: Path | None = None
 
 
 @lru_cache
