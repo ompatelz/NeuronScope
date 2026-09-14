@@ -10,11 +10,13 @@ import {
   createExperiment,
   type ActivationName, type DatasetKind, type ExperimentRequest,
   type ExperimentResponse, type InitializationName, type OptimizerName,
+  type PlaybackSnapshot,
 } from "./api/experiments";
 import { DecisionBoundary } from "./components/decisionBoundary";
 import { DiagnosticsPanel } from "./components/diagnosticsPanel";
 import { LayerSignals } from "./components/layerSignals";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
+import { PlaybackScrubber } from "./components/playbackScrubber";
 import { appendRun, resolveRunResult, RunComparison, type RunRecord } from "./components/runComparison";
 import { TrainingMetricsChart } from "./components/trainingMetrics";
 import { parseHiddenLayers } from "./config";
@@ -56,6 +58,7 @@ function buildRequest(config: WorkbenchConfig): ExperimentRequest {
       epochs: config.epochs, instrumentation: true,
     },
     boundary: { resolution: 48 },
+    playback: { max_snapshots: 12 },
   };
 }
 
@@ -139,8 +142,14 @@ function EmptyStage({ icon: Icon, title, text }: { icon: LucideIcon; title: stri
   return <div className="empty-stage"><Icon aria-hidden="true" /><strong>{title}</strong><p>{text}</p></div>;
 }
 
-function Stage({ state, onSelect }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void }) {
+function Stage({ state, onSelect, snapshot }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void; snapshot: PlaybackSnapshot | null }) {
   const result = state.status === "completed" ? state.result : null;
+  const boundary = result && snapshot ? {
+    resolution: result.playback.resolution,
+    x_coordinates: result.playback.x_coordinates,
+    y_coordinates: result.playback.y_coordinates,
+    probabilities: snapshot.probabilities,
+  } : result?.boundary;
   return (
     <section className="stage" aria-label="Visualization stage">
       <Tabs.Root defaultValue="network" className="tab-root">
@@ -153,7 +162,7 @@ function Stage({ state, onSelect }: { state: RunState; onSelect: (node: Architec
             : <EmptyStage icon={Network} title="No observed architecture yet" text="Run an experiment to inspect the architecture returned by the training API." />}
         </Tabs.Panel>
         <Tabs.Panel value="boundary" className="stage-panel">
-          {result ? <DecisionBoundary boundary={result.boundary} points={result.dataset.points} />
+          {result && boundary ? <DecisionBoundary boundary={boundary} points={result.dataset.points} />
             : <EmptyStage icon={Braces} title="No decision boundary yet" text="A prediction grid will appear here when that real capability is implemented." />}
         </Tabs.Panel>
       </Tabs.Root>
@@ -161,13 +170,14 @@ function Stage({ state, onSelect }: { state: RunState; onSelect: (node: Architec
   );
 }
 
-function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearRuns }: {
+function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearRuns, snapshot }: {
   state: RunState;
   selected: ArchitectureNodeData | null;
   runs: RunRecord[];
   selectedRunId: number | null;
   onSelectRun: (id: number) => void;
   onClearRuns: () => void;
+  snapshot: PlaybackSnapshot | null;
 }) {
   const result = state.status === "completed" ? state.result : null;
   const selectedLayerName = selected && result
@@ -184,10 +194,10 @@ function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearR
             <div><dt>Layer width</dt><dd>{selected.width}</dd></div>
             <div><dt>Activation</dt><dd>{selected.activation ?? "None"}</dd></div>
             <div><dt>Layer parameters</dt><dd>{selected.parameterCount.toLocaleString()}</dd></div>
-          </dl>{result && <LayerSignals instrumentation={result.training.instrumentation} selectedLayerName={selectedLayerName} />}</> : result ? <><p className="panel-copy">Select a neuron to focus its signals. All learned layers are shown below.</p><dl className="data-list">
+          </dl>{result && <LayerSignals instrumentation={snapshot?.instrumentation ? [snapshot.instrumentation] : result.training.instrumentation} selectedLayerName={selectedLayerName} />}</> : result ? <><p className="panel-copy">Select a neuron to focus its signals. All learned layers are shown below.</p><dl className="data-list">
             <div><dt>Dense layers</dt><dd>{result.architecture.layers.length}</dd></div>
             <div><dt>Total parameters</dt><dd>{result.architecture.total_parameters.toLocaleString()}</dd></div>
-          </dl><LayerSignals instrumentation={result.training.instrumentation} /></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
+          </dl><LayerSignals instrumentation={snapshot?.instrumentation ? [snapshot.instrumentation] : result.training.instrumentation} /></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
         </Tabs.Panel>
         <Tabs.Panel value="diagnostics" className="inspector-panel">{result ? <DiagnosticsPanel diagnostics={result.diagnostics} /> : <p className="panel-copy">Run an instrumented experiment to evaluate diagnostic rules.</p>}</Tabs.Panel>
         <Tabs.Panel value="runs" className="inspector-panel"><RunComparison runs={runs} selectedId={selectedRunId} onSelect={onSelectRun} onClear={onClearRuns} /></Tabs.Panel>
@@ -196,11 +206,19 @@ function Inspector({ state, selected, runs, selectedRunId, onSelectRun, onClearR
   );
 }
 
-function Metrics({ state }: { state: RunState }) {
+function Metrics({ state, snapshot, onSelectEpoch }: { state: RunState; snapshot: PlaybackSnapshot | null; onSelectEpoch: (epoch: number) => void }) {
+  const result = state.status === "completed" ? state.result : null;
+  const observedTraining = result && snapshot ? {
+    ...result.training,
+    history: result.training.history.filter((metric) => metric.epoch <= snapshot.epoch),
+    final_loss: snapshot.metrics.loss,
+    final_accuracy: snapshot.metrics.accuracy,
+  } : result?.training;
   return (
     <section className="metrics-dock" aria-label="Metrics history">
       <Heading icon={BarChart3} title="Metrics history" description="Raw observations, newest last" />
-      {state.status === "completed" ? <TrainingMetricsChart training={state.result.training} />
+      {result && snapshot && <PlaybackScrubber playback={result.playback} selectedEpoch={snapshot.epoch} onSelect={onSelectEpoch} />}
+      {observedTraining ? <TrainingMetricsChart training={observedTraining} />
         : <p className="panel-copy">Loss and accuracy observations appear after a completed run.</p>}
     </section>
   );
@@ -212,6 +230,7 @@ export function App() {
   const [selectedNode, setSelectedNode] = useState<ArchitectureNodeData | null>(null);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [selectedPlaybackEpoch, setSelectedPlaybackEpoch] = useState<number | null>(null);
   const nextRunId = useRef(1);
   function update<K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) {
     setConfig((current) => ({ ...current, [key]: value }));
@@ -222,6 +241,7 @@ export function App() {
     try { request = buildRequest(config); }
     catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "Invalid configuration." }); return; }
     setSelectedNode(null);
+    setSelectedPlaybackEpoch(null);
     setState({ status: "loading" });
     try {
       const result = await createExperiment(request);
@@ -235,6 +255,9 @@ export function App() {
   }
   const displayResult = resolveRunResult(runs, selectedRunId, state.status === "completed" ? state.result : null);
   const displayState: RunState = displayResult ? { status: "completed", result: displayResult } : state;
+  const playbackSnapshot = displayResult
+    ? displayResult.playback.snapshots.find((snapshot) => snapshot.epoch === selectedPlaybackEpoch) ?? displayResult.playback.snapshots.at(-1) ?? null
+    : null;
   function clearRuns() {
     setRuns([]);
     setSelectedRunId(null);
@@ -249,7 +272,7 @@ export function App() {
         </div>
       </header>
       <StateSummary state={state} />
-      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={displayState} onSelect={setSelectedNode} /><Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); }} onClearRuns={clearRuns} /><Metrics state={displayState} /></div>
+      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} /><Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); setSelectedPlaybackEpoch(null); }} onClearRuns={clearRuns} snapshot={playbackSnapshot} /><Metrics state={displayState} snapshot={playbackSnapshot} onSelectEpoch={setSelectedPlaybackEpoch} /></div>
     </form></main>
   );
 }

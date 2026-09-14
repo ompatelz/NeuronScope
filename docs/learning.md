@@ -67,6 +67,15 @@ gradient is critical immediately. The centralized thresholds are useful signals 
 universal laws, so each result includes its exact observations, threshold, explanation, and possible
 experiments to try.
 
+## Bounded training playback
+
+Playback records the first epoch, final epoch, and a capped set of evenly spaced epochs between
+them. The trainer temporarily clones only those selected model states on the CPU. The experiment
+service uses each state to calculate probabilities on one fixed decision grid, then restores the
+final model and discards every state dictionary. The browser receives metrics, scalar
+instrumentation, and grid probabilities—not weights or arbitrary tensors—so replay remains useful
+without making response size grow with every training epoch.
+
 ## Loss, backpropagation, and optimization
 
 For binary classification, the output logit is compared with the class label using binary cross
