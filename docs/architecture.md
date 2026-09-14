@@ -11,6 +11,11 @@ React workbench  ->  FastAPI API  ->  dataset/model/training modules
 
 - `frontend/` owns rendering, interactions, and typed API clients.
 - `backend/src/neuronscope/api/` owns HTTP routing and request/response schemas.
-- Future `datasets`, `models`, `training`, `instrumentation`, and `diagnostics` packages own domain logic. API routes must orchestrate them rather than contain their implementation.
+- `datasets`, `models`, and `training` own deterministic data generation, model construction, and
+  synchronous optimization respectively. Future `instrumentation` and `diagnostics` packages will
+  observe those domains without folding their logic into the trainer. API routes must orchestrate
+  domain services rather than contain their implementation.
 
-The health endpoint is deliberately the only runtime behavior in the bootstrap. It verifies that the transport boundary works without implying a training implementation that does not exist.
+The training engine consumes typed dataset results and a configured MLP directly. It stays
+transport-independent: the later experiment API can call it, while tests or notebooks can reuse
+the same service without constructing HTTP requests.
