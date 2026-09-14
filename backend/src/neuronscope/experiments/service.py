@@ -1,6 +1,7 @@
 """Application service composing dataset, model, and training domains."""
 
 from neuronscope.datasets import generate_dataset
+from neuronscope.diagnostics import evaluate_diagnostics
 from neuronscope.experiments.boundary import compute_decision_boundary
 from neuronscope.experiments.schemas import ExperimentRequest, ExperimentResponse
 from neuronscope.models import build_mlp
@@ -14,9 +15,13 @@ def run_experiment(request: ExperimentRequest) -> ExperimentResponse:
     model = build_mlp(request.model)
     training = train_model(model, dataset, request.training)
     boundary = compute_decision_boundary(model, dataset, request.boundary.resolution)
+    diagnostics = evaluate_diagnostics(
+        training.instrumentation, request.diagnostics, request.model.activation
+    )
     return ExperimentResponse(
         dataset=dataset,
         architecture=model.architecture,
         training=training,
         boundary=boundary,
+        diagnostics=diagnostics,
     )

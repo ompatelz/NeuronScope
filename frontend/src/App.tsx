@@ -12,6 +12,7 @@ import {
   type ExperimentResponse, type InitializationName, type OptimizerName,
 } from "./api/experiments";
 import { DecisionBoundary } from "./components/decisionBoundary";
+import { DiagnosticsPanel } from "./components/diagnosticsPanel";
 import { LayerSignals } from "./components/layerSignals";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
 import { TrainingMetricsChart } from "./components/trainingMetrics";
@@ -180,7 +181,7 @@ function Inspector({ state, selected }: { state: RunState; selected: Architectur
             <div><dt>Total parameters</dt><dd>{result.architecture.total_parameters.toLocaleString()}</dd></div>
           </dl><LayerSignals instrumentation={result.training.instrumentation} /></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
         </Tabs.Panel>
-        <Tabs.Panel value="diagnostics" className="inspector-panel"><p className="panel-copy">Diagnostics stay empty until Task 11 supplies transparent rules and evidence.</p></Tabs.Panel>
+        <Tabs.Panel value="diagnostics" className="inspector-panel">{result ? <DiagnosticsPanel diagnostics={result.diagnostics} /> : <p className="panel-copy">Run an instrumented experiment to evaluate diagnostic rules.</p>}</Tabs.Panel>
       </Tabs.Root>
     </aside>
   );

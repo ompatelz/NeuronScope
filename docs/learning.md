@@ -58,6 +58,15 @@ the optimizer clears them. Hooks are disabled during post-update metric evaluati
 a `finally` block, preventing validation contamination, retained computation graphs, and duplicate
 observations across repeated runs.
 
+## Transparent training diagnostics
+
+NeuronScope applies deterministic heuristics to recent instrumentation; it does not ask an LLM to
+guess what happened. Consecutive tiny gradients suggest vanishing gradients, consecutive large
+gradients suggest exploding gradients, and mostly zero ReLU outputs suggest dead units. A non-finite
+gradient is critical immediately. The centralized thresholds are useful signals rather than
+universal laws, so each result includes its exact observations, threshold, explanation, and possible
+experiments to try.
+
 ## Loss, backpropagation, and optimization
 
 For binary classification, the output logit is compared with the class label using binary cross

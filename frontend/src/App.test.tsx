@@ -15,6 +15,7 @@ const response = {
   architecture: { input_size: 2, hidden_layers: [4], output_size: 1, layers: [{ name: "hidden_0", input_size: 2, output_size: 4, activation: "relu", parameter_count: 12 }, { name: "output", input_size: 4, output_size: 1, activation: null, parameter_count: 5 }], total_parameters: 17 },
   training: { config: { optimizer: "adam", learning_rate: 0.01, epochs: 2, instrumentation: true }, history: [{ epoch: 1, loss: 0.7, accuracy: 0.5 }, { epoch: 2, loss: 0.25, accuracy: 0.9 }], instrumentation: [], final_loss: 0.25, final_accuracy: 0.9 },
   boundary: { resolution: 2, x_coordinates: [0, 39], y_coordinates: [-1, 1], probabilities: [0.1, 0.2, 0.8, 0.9] },
+  diagnostics: [],
 };
 
 afterEach(() => {

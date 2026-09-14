@@ -31,6 +31,14 @@ export interface EpochInstrumentation {
   layers: LayerInstrumentation[];
 }
 
+export interface DiagnosticResult {
+  type: "vanishing_gradients" | "exploding_gradients" | "dead_relu";
+  severity: "warning" | "critical";
+  evidence: Array<{ layer_name: string; epochs: number[]; metric: string; observed_values: number[]; threshold: number }>;
+  explanation: string;
+  possible_actions: string[];
+}
+
 export interface ExperimentRequest {
   dataset: { kind: DatasetKind; samples: number; noise: number; seed: number };
   model: {
@@ -48,6 +56,7 @@ export interface ExperimentRequest {
     instrumentation: boolean;
   };
   boundary?: { resolution: number };
+  diagnostics?: { consecutive_epochs?: number; vanishing_gradient_norm?: number; exploding_gradient_norm?: number; dead_relu_zero_percentage?: number };
 }
 
 export interface ExperimentResponse {
@@ -81,6 +90,7 @@ export interface ExperimentResponse {
     y_coordinates: number[];
     probabilities: number[];
   };
+  diagnostics: DiagnosticResult[];
 }
 
 function errorMessage(payload: unknown): string | undefined {

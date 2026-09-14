@@ -23,6 +23,7 @@ def test_service_composes_a_complete_experiment_without_http() -> None:
     assert len(response.training.history) == 2
     assert response.boundary.resolution == 48
     assert len(response.boundary.probabilities) == 48 * 48
+    assert response.diagnostics == ()
 
 
 def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
@@ -61,6 +62,7 @@ def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
     assert layer["gradients"]["norm"] is not None
     assert body["boundary"]["resolution"] == 48
     assert len(body["boundary"]["probabilities"]) == 48 * 48
+    assert isinstance(body["diagnostics"], list)
 
 
 def test_experiment_endpoint_rejects_invalid_nested_configurations() -> None:
