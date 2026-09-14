@@ -28,6 +28,15 @@ Tabs provide keyboard navigation and focus behavior. Native labeled inputs prese
 `POST /api/v1/experiments` is the only source of run summaries; idle, loading, error, and completed
 states remain explicit, and unavailable visualizations say so instead of displaying sample telemetry.
 
+## Network graph
+
+The Network view uses React Flow only after a completed experiment supplies an architecture. A pure,
+deterministic transform maps input, hidden, and output neurons into fixed left-to-right columns with
+stable identifiers and adjacent-layer edges. Nodes can be selected but not moved or connected; the
+inspector reports the selected neuron's layer, index, width, activation, and layer parameter count.
+Very wide layers retain their real count while collapsing excess visual nodes, avoiding an unbounded
+DOM and edge explosion. Graph layout remains presentation logic and never changes model execution.
+
 ## Visual principles
 
 The workbench is calm, information-first, and dense only when there is evidence to show. It uses neutral surfaces, one purposeful blue accent, readable sans and monospace type, thin borders, and responsive spacing. Light and dark modes follow the system preference through the same semantic tokens.

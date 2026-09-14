@@ -4,6 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { parseHiddenLayers } from "./config";
 
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 const response = {
   dataset: { config: { kind: "two_moons", samples: 40, noise: 0.1, seed: 42 }, points: Array.from({ length: 40 }, (_, index) => ({ x: index, y: 0, label: index % 2 })) },
   architecture: { input_size: 2, hidden_layers: [4], output_size: 1, layers: [{ name: "hidden_0", input_size: 2, output_size: 4, activation: "relu", parameter_count: 12 }, { name: "output", input_size: 4, output_size: 1, activation: null, parameter_count: 5 }], total_parameters: 17 },
@@ -27,6 +33,7 @@ describe("App", () => {
   });
 
   it("posts selected configuration and presents observed results", async () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
@@ -36,12 +43,15 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run experiment" }));
     await screen.findByText("Run completed");
     expect(screen.getAllByText("90.0%", { exact: false })).toHaveLength(2);
-    expect(screen.getByText("2 → 4 → 1")).toBeTruthy();
+    expect(screen.getByText("h1.1")).toBeTruthy();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body)) as { dataset: { samples: number }; model: { hidden_layers: number[] }; training: { epochs: number } };
     expect(body.dataset.samples).toBe(40);
     expect(body.model.hidden_layers).toEqual([4]);
     expect(body.training.epochs).toBe(2);
+    const neuron = await screen.findByLabelText("Hidden 1, neuron 1 of 4");
+    fireEvent.click(neuron);
+    expect(screen.getByText("Hidden 1 · h1.1")).toBeTruthy();
   });
 
   it("shows API failures as an alert", async () => {
