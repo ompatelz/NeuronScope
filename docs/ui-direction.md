@@ -14,6 +14,20 @@
 - **Motion:** use only when an interaction communicates state; no decorative entrance animation.
 - **Radix:** mature alternative, but Base UI gives an accessible unstyled foundation with the current React stack. Avoid mixing primitive systems without a reason.
 
+## Workbench information architecture
+
+The application uses a seam-based instrument layout rather than a dashboard of detached cards:
+
+- a 280 px configuration rail owns dataset, network, and training controls;
+- the flexible center stage switches between Network and Boundary views;
+- a 320 px inspector switches between Selection and Diagnostics evidence;
+- a bottom dock owns raw metrics history.
+
+Below desktop width, panels reflow into two columns and then one continuous mobile column. Base UI
+Tabs provide keyboard navigation and focus behavior. Native labeled inputs preserve browser validation.
+`POST /api/v1/experiments` is the only source of run summaries; idle, loading, error, and completed
+states remain explicit, and unavailable visualizations say so instead of displaying sample telemetry.
+
 ## Visual principles
 
 The workbench is calm, information-first, and dense only when there is evidence to show. It uses neutral surfaces, one purposeful blue accent, readable sans and monospace type, thin borders, and responsive spacing. Light and dark modes follow the system preference through the same semantic tokens.
