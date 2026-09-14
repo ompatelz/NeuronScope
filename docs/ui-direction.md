@@ -45,6 +45,15 @@ keeps the most recent observations available without relying on color or pointer
 loss, accuracy, epoch progress, optimizer, and learning rate are taken directly from the completed
 training response. No chart is rendered for idle, loading, failed, or empty-history states.
 
+## Layer signals
+
+The Selection inspector reads only the latest recorded instrumentation epoch. Without a selected
+neuron it presents every learned layer; selecting a network node focuses the corresponding layer.
+Gradient norm, mean, standard deviation and non-finite count appear alongside weight norm and the
+available activation range, mean, standard deviation, and zero percentage. Missing values and the
+output layer's intentionally absent activation summary remain explicit. Relative bars aid scanning,
+but warning color is reserved for observed non-finite counts—diagnostic thresholds belong to Task 11.
+
 ## Visual principles
 
 The workbench is calm, information-first, and dense only when there is evidence to show. It uses neutral surfaces, one purposeful blue accent, readable sans and monospace type, thin borders, and responsive spacing. Light and dark modes follow the system preference through the same semantic tokens.

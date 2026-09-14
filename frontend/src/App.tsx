@@ -12,6 +12,7 @@ import {
   type ExperimentResponse, type InitializationName, type OptimizerName,
 } from "./api/experiments";
 import { DecisionBoundary } from "./components/decisionBoundary";
+import { LayerSignals } from "./components/layerSignals";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
 import { TrainingMetricsChart } from "./components/trainingMetrics";
 import { parseHiddenLayers } from "./config";
@@ -160,6 +161,9 @@ function Stage({ state, onSelect }: { state: RunState; onSelect: (node: Architec
 
 function Inspector({ state, selected }: { state: RunState; selected: ArchitectureNodeData | null }) {
   const result = state.status === "completed" ? state.result : null;
+  const selectedLayerName = selected && result
+    ? selected.layerIndex === 0 ? "__input__" : result.architecture.layers[selected.layerIndex - 1]?.name
+    : null;
   return (
     <aside className="inspector" aria-label="Debugger inspector">
       <Heading icon={Bug} title="Inspector" description="Evidence from the selected run" />
@@ -171,10 +175,10 @@ function Inspector({ state, selected }: { state: RunState; selected: Architectur
             <div><dt>Layer width</dt><dd>{selected.width}</dd></div>
             <div><dt>Activation</dt><dd>{selected.activation ?? "None"}</dd></div>
             <div><dt>Layer parameters</dt><dd>{selected.parameterCount.toLocaleString()}</dd></div>
-          </dl></> : result ? <><p className="panel-copy">Select a neuron to inspect it. The run architecture is summarized below.</p><dl className="data-list">
+          </dl>{result && <LayerSignals instrumentation={result.training.instrumentation} selectedLayerName={selectedLayerName} />}</> : result ? <><p className="panel-copy">Select a neuron to focus its signals. All learned layers are shown below.</p><dl className="data-list">
             <div><dt>Dense layers</dt><dd>{result.architecture.layers.length}</dd></div>
             <div><dt>Total parameters</dt><dd>{result.architecture.total_parameters.toLocaleString()}</dd></div>
-          </dl></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
+          </dl><LayerSignals instrumentation={result.training.instrumentation} /></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
         </Tabs.Panel>
         <Tabs.Panel value="diagnostics" className="inspector-panel"><p className="panel-copy">Diagnostics stay empty until Task 11 supplies transparent rules and evidence.</p></Tabs.Panel>
       </Tabs.Root>
