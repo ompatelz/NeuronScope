@@ -4,6 +4,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from neuronscope.instrumentation.schemas import EpochInstrumentation
+
 
 class OptimizerName(StrEnum):
     """Optimizers supported by the first synchronous training engine."""
@@ -20,6 +22,7 @@ class TrainingConfig(BaseModel):
     optimizer: OptimizerName = OptimizerName.ADAM
     learning_rate: float = Field(default=0.01, gt=0.0, le=1.0)
     epochs: int = Field(default=200, ge=1, le=5_000)
+    instrumentation: bool = False
 
 
 class EpochMetrics(BaseModel):
@@ -39,5 +42,6 @@ class TrainingResult(BaseModel):
 
     config: TrainingConfig
     history: tuple[EpochMetrics, ...]
+    instrumentation: tuple[EpochInstrumentation, ...] = ()
     final_loss: float = Field(ge=0.0)
     final_accuracy: float = Field(ge=0.0, le=1.0)

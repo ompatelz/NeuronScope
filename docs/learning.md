@@ -45,6 +45,19 @@ natural fit for tanh or sigmoid. He initialization emphasizes fan-in and is desi
 Seeding makes construction repeatable, while NeuronScope isolates model construction so it does
 not unexpectedly advance the caller's global random-number stream.
 
+## Instrumentation and gradient flow
+
+During forward propagation, each hidden activation is the tensor passed onward to the next layer.
+During backpropagation, each parameter gradient describes how a small change to that parameter
+would change the loss. Gradient norms therefore provide a compact view of whether learning signals
+are flowing through the network.
+
+NeuronScope registers temporary forward hooks on hidden activations, immediately detaches their
+outputs, and stores only scalar summaries. After `backward()`, it reads parameter gradients before
+the optimizer clears them. Hooks are disabled during post-update metric evaluation and removed in
+a `finally` block, preventing validation contamination, retained computation graphs, and duplicate
+observations across repeated runs.
+
 ## Loss, backpropagation, and optimization
 
 For binary classification, the output logit is compared with the class label using binary cross
