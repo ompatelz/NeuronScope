@@ -4,7 +4,7 @@ import {
   CirclePlay, Database, LoaderCircle, Network, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { type FormEvent, type ReactNode, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
 import {
   createExperiment,
@@ -19,7 +19,7 @@ import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGra
 import { PlaybackScrubber } from "./components/playbackScrubber";
 import { appendRun, resolveRunResult, RunComparison, type RunRecord } from "./components/runComparison";
 import { TrainingMetricsChart } from "./components/trainingMetrics";
-import { parseHiddenLayers } from "./config";
+import { parseHiddenLayers, validateConfig, type ConfigValidationError } from "./config";
 
 interface WorkbenchConfig {
   dataset: DatasetKind;
@@ -37,6 +37,7 @@ interface WorkbenchConfig {
 type RunState =
   | { status: "idle" }
   | { status: "loading" }
+  | { status: "cancelled" }
   | { status: "error"; message: string }
   | { status: "completed"; result: ExperimentResponse };
 
@@ -75,13 +76,17 @@ function Heading({ icon: Icon, title, description }: { icon: LucideIcon; title: 
   );
 }
 
-function Configuration({ config, onChange }: {
+function Configuration({ config, onChange, error }: {
   config: WorkbenchConfig;
   onChange: <K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) => void;
+  error: ConfigValidationError | null;
 }) {
+  const invalid = (field: ConfigValidationError["field"]) => error?.field === field;
+  const describedBy = (field: ConfigValidationError["field"]) => invalid(field) ? "configuration-error" : undefined;
   return (
     <aside className="config-rail" aria-label="Experiment configuration">
       <Heading icon={SlidersHorizontal} title="Configuration" description="One synchronous observed run" />
+      {error && <p id="configuration-error" className="configuration-error" role="alert"><AlertCircle aria-hidden="true" />{error.message}</p>}
       <fieldset className="control-group">
         <legend><Database /> Dataset</legend>
         <Field label="Kind"><select value={config.dataset} onChange={(e) => onChange("dataset", e.target.value as DatasetKind)}>
@@ -89,16 +94,16 @@ function Configuration({ config, onChange }: {
           <option value="xor">XOR</option><option value="spiral">Spiral</option>
         </select></Field>
         <div className="control-pair">
-          <Field label="Samples"><input type="number" min="40" max="2000" value={config.samples} onChange={(e) => onChange("samples", e.target.valueAsNumber)} /></Field>
-          <Field label="Noise"><input type="number" min="0" max="0.5" step="0.01" value={config.noise} onChange={(e) => onChange("noise", e.target.valueAsNumber)} /></Field>
+          <Field label="Samples"><input type="number" min="40" max="2000" value={config.samples} aria-invalid={invalid("samples")} aria-describedby={describedBy("samples")} onChange={(e) => onChange("samples", e.target.valueAsNumber)} /></Field>
+          <Field label="Noise"><input type="number" min="0" max="0.5" step="0.01" value={config.noise} aria-invalid={invalid("noise")} aria-describedby={describedBy("noise")} onChange={(e) => onChange("noise", e.target.valueAsNumber)} /></Field>
         </div>
-        <Field label="Seed" hint="Shared by dataset and model"><input type="number" min="0" max="2147483647" value={config.seed} onChange={(e) => onChange("seed", e.target.valueAsNumber)} /></Field>
+        <Field label="Seed" hint="Shared by dataset and model"><input type="number" min="0" max="2147483647" value={config.seed} aria-invalid={invalid("seed")} aria-describedby={describedBy("seed")} onChange={(e) => onChange("seed", e.target.valueAsNumber)} /></Field>
       </fieldset>
 
       <fieldset className="control-group">
         <legend><Network /> Network</legend>
         <Field label="Hidden layers" hint="Comma-separated widths; maximum 8">
-          <input aria-label="Hidden layers" type="text" inputMode="numeric" value={config.hiddenLayers} onChange={(e) => onChange("hiddenLayers", e.target.value)} placeholder="8, 8" />
+          <input aria-label="Hidden layers" type="text" inputMode="numeric" value={config.hiddenLayers} aria-invalid={invalid("hiddenLayers")} aria-describedby={describedBy("hiddenLayers")} onChange={(e) => onChange("hiddenLayers", e.target.value)} placeholder="8, 8" />
         </Field>
         <div className="control-pair">
           <Field label="Activation"><select value={config.activation} onChange={(e) => onChange("activation", e.target.value as ActivationName)}>
@@ -116,8 +121,8 @@ function Configuration({ config, onChange }: {
           <option value="adam">Adam</option><option value="sgd">SGD</option>
         </select></Field>
         <div className="control-pair">
-          <Field label="Learning rate"><input type="number" min="0.0001" max="1" step="0.0001" value={config.learningRate} onChange={(e) => onChange("learningRate", e.target.valueAsNumber)} /></Field>
-          <Field label="Epochs"><input type="number" min="1" max="5000" value={config.epochs} onChange={(e) => onChange("epochs", e.target.valueAsNumber)} /></Field>
+          <Field label="Learning rate"><input type="number" min="0.0001" max="1" step="0.0001" value={config.learningRate} aria-invalid={invalid("learningRate")} aria-describedby={describedBy("learningRate")} onChange={(e) => onChange("learningRate", e.target.valueAsNumber)} /></Field>
+          <Field label="Epochs"><input type="number" min="1" max="5000" value={config.epochs} aria-invalid={invalid("epochs")} aria-describedby={describedBy("epochs")} onChange={(e) => onChange("epochs", e.target.valueAsNumber)} /></Field>
         </div>
       </fieldset>
     </aside>
@@ -126,6 +131,7 @@ function Configuration({ config, onChange }: {
 
 function StateSummary({ state }: { state: RunState }) {
   const contents = state.status === "loading" ? [LoaderCircle, "Training in progress", "The API is running the configured experiment."] as const
+    : state.status === "cancelled" ? [AlertCircle, "Run cancelled", "No result was recorded. You can adjust the configuration and run again."] as const
     : state.status === "error" ? [AlertCircle, "Run failed", state.message] as const
     : state.status === "completed" ? [CheckCircle2, "Run completed", `Accuracy ${(state.result.training.final_accuracy * 100).toFixed(1)}% · Loss ${state.result.training.final_loss.toFixed(4)}`] as const
     : [CirclePlay, "Ready to train", "Review the configuration, then start a real run."] as const;
@@ -231,27 +237,56 @@ export function App() {
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
   const [selectedPlaybackEpoch, setSelectedPlaybackEpoch] = useState<number | null>(null);
+  const [configError, setConfigError] = useState<ConfigValidationError | null>(null);
   const nextRunId = useRef(1);
+  const requestSequence = useRef(0);
+  const requestController = useRef<AbortController | null>(null);
+  useEffect(() => () => {
+    requestSequence.current += 1;
+    requestController.current?.abort();
+  }, []);
   function update<K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) {
     setConfig((current) => ({ ...current, [key]: value }));
+    setConfigError((current) => current?.field === key ? null : current);
+    setState((current) => current.status === "error" || current.status === "cancelled" ? { status: "idle" } : current);
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = validateConfig(config);
+    if (validationError) {
+      setConfigError(validationError);
+      setState((current) => current.status === "error" || current.status === "cancelled" ? { status: "idle" } : current);
+      window.setTimeout(() => document.querySelector<HTMLElement>(`[aria-describedby="configuration-error"]`)?.focus());
+      return;
+    }
+    setConfigError(null);
     let request: ExperimentRequest;
     try { request = buildRequest(config); }
     catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "Invalid configuration." }); return; }
     setSelectedNode(null);
     setSelectedPlaybackEpoch(null);
+    setSelectedRunId(null);
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
+    const requestId = ++requestSequence.current;
     setState({ status: "loading" });
     try {
-      const result = await createExperiment(request);
+      const result = await createExperiment(request, controller.signal);
+      if (requestId !== requestSequence.current) return;
       const id = nextRunId.current;
       nextRunId.current += 1;
       setRuns((current) => appendRun(current, { id, label: `Run ${id}`, request, result }));
       setSelectedRunId(id);
       setState({ status: "completed", result });
     }
-    catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "The training request failed." }); }
+    catch (error) {
+      if (requestId !== requestSequence.current) return;
+      if (error instanceof Error && error.name === "AbortError") setState({ status: "cancelled" });
+      else setState({ status: "error", message: error instanceof Error ? error.message : "The training request failed." });
+    } finally {
+      if (requestController.current === controller) requestController.current = null;
+    }
   }
   const displayResult = resolveRunResult(runs, selectedRunId, state.status === "completed" ? state.result : null);
   const displayState: RunState = displayResult ? { status: "completed", result: displayResult } : state;
@@ -263,16 +298,23 @@ export function App() {
     setSelectedRunId(null);
     nextRunId.current = 1;
   }
+  function cancelRun() {
+    requestSequence.current += 1;
+    requestController.current?.abort();
+    requestController.current = null;
+    setState({ status: "cancelled" });
+  }
   return (
-    <main className="app-shell"><form onSubmit={submit}>
+    <main className="app-shell"><form onSubmit={submit} noValidate aria-busy={state.status === "loading"}>
       <header className="command-bar">
         <div className="brand-lockup"><Activity aria-hidden="true" /><span>NeuronScope</span><small>Training debugger</small></div>
         <div className="run-controls"><span className={`status-dot status-${state.status}`} /><span className="status-label">{state.status}</span>
-          <button className="run-button" type="submit" disabled={state.status === "loading"}>{state.status === "loading" ? <LoaderCircle className="animate-spin" /> : <CirclePlay />}{state.status === "loading" ? "Training…" : "Run experiment"}</button>
+          {state.status === "loading" ? <button className="run-button cancel-button" type="button" onClick={cancelRun}><AlertCircle />Cancel run</button>
+            : <button className="run-button" type="submit"><CirclePlay />Run experiment</button>}
         </div>
       </header>
       <StateSummary state={state} />
-      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} /><Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); setSelectedPlaybackEpoch(null); }} onClearRuns={clearRuns} snapshot={playbackSnapshot} /><Metrics state={displayState} snapshot={playbackSnapshot} onSelectEpoch={setSelectedPlaybackEpoch} /></div>
+      <div className="workbench-grid"><Configuration config={config} onChange={update} error={configError} /><Stage state={displayState} onSelect={setSelectedNode} snapshot={playbackSnapshot} /><Inspector state={displayState} selected={selectedNode} runs={runs} selectedRunId={selectedRunId} onSelectRun={(id) => { setSelectedRunId(id); setSelectedNode(null); setSelectedPlaybackEpoch(null); }} onClearRuns={clearRuns} snapshot={playbackSnapshot} /><Metrics state={displayState} snapshot={playbackSnapshot} onSelectEpoch={setSelectedPlaybackEpoch} /></div>
     </form></main>
   );
 }

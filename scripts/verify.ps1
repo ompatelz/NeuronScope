@@ -20,7 +20,7 @@ try {
     npm ci
     npm run lint
     npm run typecheck
-    npm run test -- --run
+    npm run test:run
     npm run build
 } finally {
     Pop-Location

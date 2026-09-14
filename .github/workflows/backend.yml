@@ -5,15 +5,25 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
+      - "scripts/verify.ps1"
   push:
     branches: [main]
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
+      - "scripts/verify.ps1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
