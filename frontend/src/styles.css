@@ -71,6 +71,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 .empty-stage, .observed-summary { height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 32px; text-align: center; }
 .empty-stage svg { width: 24px; color: var(--muted); }.empty-stage strong, .observed-summary strong { font-size: 14px; }.empty-stage p, .observed-summary p { max-width: 390px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .observed-summary small { color: var(--accent); font: 600 10px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }.observed-summary > span { color: var(--muted); font: 11px/1.3 var(--font-mono); }
+.decision-boundary { height: 100%; min-height: 340px; display: grid; grid-template-rows: minmax(0, 1fr) auto; margin: 0; background: var(--canvas); }
+.decision-boundary svg { display: block; width: 100%; height: 100%; min-height: 300px; }
+.boundary-midline { fill: none; stroke: color-mix(in oklch, white, transparent 26%); stroke-width: 1.2; }
+.boundary-point { stroke: color-mix(in oklch, black, transparent 18%); stroke-width: 1.5; }.boundary-point-0 { fill: oklch(0.78 0.14 245); }.boundary-point-1 { fill: oklch(0.79 0.15 55); }
+.decision-boundary figcaption { display: flex; align-items: center; gap: 14px; min-height: 38px; padding: 7px 12px; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font: 10px/1 var(--font-mono); }
+.decision-boundary figcaption span { display: inline-flex; align-items: center; gap: 5px; }.decision-boundary figcaption small { margin-left: auto; }
+.legend-swatch { width: 9px; height: 9px; display: inline-block; border: 1px solid var(--border); border-radius: 2px; }.legend-swatch.class-zero { background: hsl(220 58% 42%); }.legend-swatch.uncertain { background: hsl(122.5 58% 34%); }.legend-swatch.class-one { background: hsl(25 58% 42%); }
 .network-graph { width: 100%; height: 100%; min-height: 340px; background: var(--canvas); }
 .network-graph .react-flow__edge-path { stroke: color-mix(in oklch, var(--muted), transparent 68%); stroke-width: 1; }
 .network-graph .react-flow__controls { overflow: hidden; border: 1px solid var(--border); border-radius: 4px; box-shadow: none; }
