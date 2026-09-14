@@ -6,6 +6,9 @@ from neuronscope.experiments.schemas import (
     DecisionBoundaryResult,
     ExperimentRequest,
     ExperimentResponse,
+    PlaybackConfig,
+    PlaybackResult,
+    PlaybackSnapshot,
 )
 from neuronscope.experiments.service import run_experiment
 
@@ -14,6 +17,9 @@ __all__ = [
     "DecisionBoundaryResult",
     "ExperimentRequest",
     "ExperimentResponse",
+    "PlaybackConfig",
+    "PlaybackResult",
+    "PlaybackSnapshot",
     "compute_decision_boundary",
     "run_experiment",
 ]

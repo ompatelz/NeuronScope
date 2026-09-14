@@ -1,5 +1,7 @@
 """Synchronous full-batch training for small binary-classification experiments."""
 
+from dataclasses import dataclass
+
 import torch
 from torch import Tensor, nn
 from torch.optim import SGD, Adam, Optimizer
@@ -14,6 +16,23 @@ from neuronscope.training.schemas import (
     TrainingConfig,
     TrainingResult,
 )
+
+
+@dataclass(frozen=True)
+class TrainingRun:
+    """Internal result whose temporary CPU states never cross the API boundary."""
+
+    result: TrainingResult
+    states: dict[int, dict[str, Tensor]]
+
+
+def select_snapshot_epochs(epochs: int, max_snapshots: int) -> tuple[int, ...]:
+    """Select first, last, and evenly spaced epochs within a strict cap."""
+
+    count = min(epochs, max_snapshots)
+    if count == 1:
+        return (1,)
+    return tuple(round(index * (epochs - 1) / (count - 1)) + 1 for index in range(count))
 
 
 def _dataset_tensors(dataset: DatasetResult) -> tuple[Tensor, Tensor]:
@@ -53,6 +72,17 @@ def train_model(
     repeatable runs while NeuronScope datasets remain small.
     """
 
+    return train_model_with_snapshots(model, dataset, config, snapshot_epochs=()).result
+
+
+def train_model_with_snapshots(
+    model: ConfigurableMLP,
+    dataset: DatasetResult,
+    config: TrainingConfig,
+    snapshot_epochs: tuple[int, ...],
+) -> TrainingRun:
+    """Train while temporarily retaining only explicitly selected CPU model states."""
+
     architecture = model.architecture
     if architecture.input_size != 2 or architecture.output_size != 1:
         raise ValueError(
@@ -68,6 +98,8 @@ def train_model(
     loss_function = nn.BCEWithLogitsLoss()
     history: list[EpochMetrics] = []
     instrumentation_history: list[EpochInstrumentation] = []
+    captured_states: dict[int, dict[str, Tensor]] = {}
+    selected_epochs = set(snapshot_epochs)
     collector = TrainingInstrumentationCollector(model) if config.instrumentation else None
 
     if collector is not None:
@@ -91,15 +123,22 @@ def train_model(
             with torch.no_grad():
                 loss_value, accuracy = _measure(model(features), targets, loss_function)
             history.append(EpochMetrics(epoch=epoch, loss=loss_value, accuracy=accuracy))
+            if epoch in selected_epochs:
+                captured_states[epoch] = {
+                    name: value.detach().cpu().clone() for name, value in model.state_dict().items()
+                }
     finally:
         if collector is not None:
             collector.remove()
 
     final = history[-1]
-    return TrainingResult(
-        config=config,
-        history=tuple(history),
-        instrumentation=tuple(instrumentation_history),
-        final_loss=final.loss,
-        final_accuracy=final.accuracy,
+    return TrainingRun(
+        result=TrainingResult(
+            config=config,
+            history=tuple(history),
+            instrumentation=tuple(instrumentation_history),
+            final_loss=final.loss,
+            final_accuracy=final.accuracy,
+        ),
+        states=captured_states,
     )
