@@ -4,9 +4,20 @@ version = "0.1.0"
 description = "API service for the NeuronScope neural-network training debugger."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [{ name = "Om Patel" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
 dependencies = [
     "fastapi>=0.128,<1",
+    "numpy>=2.4,<3",
     "pydantic-settings>=2.12,<3",
+    "scikit-learn>=1.8,<2",
+    "torch>=2.8,<3",
     "uvicorn[standard]>=0.40,<1",
 ]
 
@@ -39,3 +50,16 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 strict = true
 mypy_path = "src"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[project.urls]
+Homepage = "https://github.com/ompatelz/NeuronScope"
+Repository = "https://github.com/ompatelz/NeuronScope"
+Issues = "https://github.com/ompatelz/NeuronScope/issues"

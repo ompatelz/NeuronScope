@@ -5,15 +5,25 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
+      - "scripts/verify.ps1"
   push:
     branches: [main]
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
+      - "scripts/verify.ps1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -25,7 +35,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: uv sync --all-groups
+      - run: uv sync --all-groups --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy src

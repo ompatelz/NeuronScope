@@ -5,15 +5,25 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend.yml"
+      - "scripts/verify.ps1"
   push:
     branches: [main]
     paths:
       - "frontend/**"
       - ".github/workflows/frontend.yml"
+      - "scripts/verify.ps1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -25,7 +35,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test -- --run
+      - run: npm run test:run
       - run: npm run build
