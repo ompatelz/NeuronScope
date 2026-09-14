@@ -26,6 +26,10 @@ run; the interface does not invent demonstration telemetry.
 - Scrub through 12 selected training snapshots in the workbench without sending model weights to
   the browser (the API permits a bounded maximum of 24).
 - Compare the five most recent completed runs in local browser memory.
+- Start from four evidence-oriented experiment presets, then tune decision-grid resolution,
+  playback density, diagnostic persistence, and warning thresholds.
+- Resize the desktop workbench like an IDE and inspect loss/accuracy with responsive dual-axis
+  Recharts tooltips and keyboard navigation.
 - Cancel a request from the UI, recover from validation/API failures, and use the responsive
   keyboard-accessible workbench across desktop and smaller layouts.
 
@@ -72,7 +76,7 @@ See [Architecture](docs/architecture.md) for module boundaries and the complete 
 | Backend | Python 3.12+, FastAPI, Pydantic, Uvicorn |
 | ML | PyTorch CPU, NumPy, scikit-learn |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4 |
-| UI and graph | Base UI, React Flow, Lucide |
+| UI and graph | Base UI, React Flow, Recharts, react-resizable-panels, Lucide |
 | Quality | pytest, Ruff, mypy, Vitest, Testing Library, ESLint |
 | Automation | GitHub Actions with separate backend and frontend gates |
 

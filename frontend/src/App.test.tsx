@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { parseHiddenLayers, validateConfig } from "./config";
+import { estimateParameterCount, parseHiddenLayers, validateConfig } from "./config";
 
 class ResizeObserverStub {
   observe() {}
@@ -36,6 +36,19 @@ describe("App", () => {
     expect(screen.getByLabelText("Optimizer")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Run experiment" })).toBeTruthy();
     expect(screen.getByText("No observed architecture yet")).toBeTruthy();
+    expect(screen.getByText("105 params")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Spiral challenge/i })).toBeTruthy();
+  });
+
+  it("applies a complex experiment preset without starting a request", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Gradient stress/i }));
+    expect((screen.getByLabelText("Hidden layers") as HTMLInputElement).value).toBe("16, 16, 16, 16, 16, 16");
+    expect((screen.getByLabelText("Activation") as HTMLSelectElement).value).toBe("sigmoid");
+    expect(screen.getByText("1,425 params")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("posts selected configuration and presents observed results", async () => {
@@ -48,7 +61,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Epochs"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Run experiment" }));
     await screen.findByText("Run completed");
-    expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(2);
+    await waitFor(() => expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(2));
     expect(screen.getByText("h1.1")).toBeTruthy();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body)) as { dataset: { samples: number }; model: { hidden_layers: number[] }; training: { epochs: number } };
@@ -138,11 +151,20 @@ describe("parseHiddenLayers", () => {
   });
 
   it("validates every bounded numeric control before serialization", () => {
-    const valid = { samples: 200, noise: 0.1, seed: 42, hiddenLayers: "8, 8", learningRate: 0.01, epochs: 200 };
+    const valid = {
+      samples: 200, noise: 0.1, seed: 42, hiddenLayers: "8, 8", learningRate: 0.01,
+      epochs: 200, boundaryResolution: 48, playbackSnapshots: 12, diagnosticWindow: 3,
+      vanishingGradientNorm: 1e-6, explodingGradientNorm: 100, deadReluPercentage: 95,
+    };
     expect(validateConfig(valid)).toBeNull();
     expect(validateConfig({ ...valid, samples: Number.NaN })?.field).toBe("samples");
     expect(validateConfig({ ...valid, noise: 0.6 })?.field).toBe("noise");
     expect(validateConfig({ ...valid, learningRate: 0 })?.field).toBe("learningRate");
     expect(validateConfig({ ...valid, epochs: 5001 })?.field).toBe("epochs");
+    expect(validateConfig({ ...valid, boundaryResolution: 81 })?.field).toBe("boundaryResolution");
+    expect(validateConfig({ ...valid, playbackSnapshots: 1 })?.field).toBe("playbackSnapshots");
+    expect(validateConfig({ ...valid, deadReluPercentage: 101 })?.field).toBe("deadReluPercentage");
+    expect(estimateParameterCount("8, 8")).toBe(105);
+    expect(estimateParameterCount("8, 0")).toBeNull();
   });
 });

@@ -10,16 +10,25 @@ export function parseHiddenLayers(value: string): number[] {
   return layers;
 }
 
-export type ConfigField = "samples" | "noise" | "seed" | "hiddenLayers" | "learningRate" | "epochs";
+export type ConfigField =
+  | "samples" | "noise" | "seed" | "hiddenLayers" | "learningRate" | "epochs"
+  | "boundaryResolution" | "playbackSnapshots" | "diagnosticWindow"
+  | "vanishingGradientNorm" | "explodingGradientNorm" | "deadReluPercentage";
 export interface ConfigValidationError { field: ConfigField; message: string }
 
-export interface ValidatableConfig {
-  samples: number;
-  noise: number;
-  seed: number;
-  hiddenLayers: string;
-  learningRate: number;
-  epochs: number;
+export type ValidatableConfig = Pick<WorkbenchConfig,
+  "samples" | "noise" | "seed" | "hiddenLayers" | "learningRate" | "epochs"
+  | "boundaryResolution" | "playbackSnapshots" | "diagnosticWindow"
+  | "vanishingGradientNorm" | "explodingGradientNorm" | "deadReluPercentage"
+>;
+
+export function estimateParameterCount(hiddenLayers: string): number | null {
+  try {
+    const widths = [2, ...parseHiddenLayers(hiddenLayers), 1];
+    return widths.slice(1).reduce((total, width, index) => total + (widths[index]! + 1) * width, 0);
+  } catch {
+    return null;
+  }
 }
 
 export function validateConfig(config: ValidatableConfig): ConfigValidationError | null {
@@ -43,5 +52,48 @@ export function validateConfig(config: ValidatableConfig): ConfigValidationError
   if (!Number.isInteger(config.epochs) || config.epochs < 1 || config.epochs > 5_000) {
     return { field: "epochs", message: "Epochs must be a whole number from 1 to 5,000." };
   }
+  if (!Number.isInteger(config.boundaryResolution) || config.boundaryResolution < 24 || config.boundaryResolution > 80) {
+    return { field: "boundaryResolution", message: "Boundary resolution must be a whole number from 24 to 80." };
+  }
+  if (!Number.isInteger(config.playbackSnapshots) || config.playbackSnapshots < 2 || config.playbackSnapshots > 24) {
+    return { field: "playbackSnapshots", message: "Playback snapshots must be a whole number from 2 to 24." };
+  }
+  if (!Number.isInteger(config.diagnosticWindow) || config.diagnosticWindow < 2 || config.diagnosticWindow > 20) {
+    return { field: "diagnosticWindow", message: "Diagnostic window must be a whole number from 2 to 20." };
+  }
+  if (!Number.isFinite(config.vanishingGradientNorm) || config.vanishingGradientNorm <= 0) {
+    return { field: "vanishingGradientNorm", message: "Vanishing-gradient threshold must be greater than 0." };
+  }
+  if (!Number.isFinite(config.explodingGradientNorm) || config.explodingGradientNorm <= 0) {
+    return { field: "explodingGradientNorm", message: "Exploding-gradient threshold must be greater than 0." };
+  }
+  if (!Number.isFinite(config.deadReluPercentage) || config.deadReluPercentage < 0 || config.deadReluPercentage > 100) {
+    return { field: "deadReluPercentage", message: "Dead-ReLU threshold must be between 0 and 100%." };
+  }
   return null;
+}
+import type {
+  ActivationName,
+  DatasetKind,
+  InitializationName,
+  OptimizerName,
+} from "./api/experiments";
+
+export interface WorkbenchConfig {
+  dataset: DatasetKind;
+  samples: number;
+  noise: number;
+  seed: number;
+  hiddenLayers: string;
+  activation: ActivationName;
+  initialization: InitializationName;
+  optimizer: OptimizerName;
+  learningRate: number;
+  epochs: number;
+  boundaryResolution: number;
+  playbackSnapshots: number;
+  diagnosticWindow: number;
+  vanishingGradientNorm: number;
+  explodingGradientNorm: number;
+  deadReluPercentage: number;
 }

@@ -1,35 +1,33 @@
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceLine,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
 import type { ExperimentResponse } from "../api/experiments";
 
-export interface MetricPlotPoint {
+export interface MetricPoint {
   epoch: number;
-  value: number;
-  x: number;
-  y: number;
+  loss: number;
+  accuracy: number;
 }
 
 export interface MetricSeries {
-  loss: MetricPlotPoint[];
-  accuracy: MetricPlotPoint[];
+  data: MetricPoint[];
   lossDomain: [number, number];
 }
 
-const LEFT = 52;
-const RIGHT = 590;
-const LOSS_TOP = 18;
-const LOSS_BOTTOM = 65;
-const ACCURACY_TOP = 91;
-const ACCURACY_BOTTOM = 138;
-
-function xPosition(index: number, count: number): number {
-  return count === 1 ? (LEFT + RIGHT) / 2 : LEFT + (index / (count - 1)) * (RIGHT - LEFT);
-}
-
-// Pure chart transformation is exported for deterministic unit testing.
+// Pure transformation retained for deterministic unit testing.
 // eslint-disable-next-line react-refresh/only-export-components
 export function buildMetricSeries(
   history: ExperimentResponse["training"]["history"],
 ): MetricSeries {
-  if (history.length === 0) return { loss: [], accuracy: [], lossDomain: [0, 1] };
+  if (history.length === 0) return { data: [], lossDomain: [0, 1] };
   const losses = history.map((item) => item.loss);
   let minimum = Math.min(...losses);
   let maximum = Math.max(...losses);
@@ -38,23 +36,14 @@ export function buildMetricSeries(
     minimum = Math.max(0, minimum - padding);
     maximum += padding;
   }
-  const scale = (value: number, low: number, high: number, top: number, bottom: number) =>
-    bottom - ((value - low) / (high - low)) * (bottom - top);
   return {
     lossDomain: [minimum, maximum],
-    loss: history.map((item, index) => ({
-      epoch: item.epoch, value: item.loss, x: xPosition(index, history.length),
-      y: scale(item.loss, minimum, maximum, LOSS_TOP, LOSS_BOTTOM),
-    })),
-    accuracy: history.map((item, index) => ({
-      epoch: item.epoch, value: item.accuracy, x: xPosition(index, history.length),
-      y: scale(item.accuracy, 0, 1, ACCURACY_TOP, ACCURACY_BOTTOM),
+    data: history.map((item) => ({
+      epoch: item.epoch,
+      loss: item.loss,
+      accuracy: item.accuracy * 100,
     })),
   };
-}
-
-function points(series: MetricPlotPoint[]): string {
-  return series.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
 export function TrainingMetricsChart({ training }: {
@@ -74,25 +63,29 @@ export function TrainingMetricsChart({ training }: {
         <span>Final accuracy <strong>{(training.final_accuracy * 100).toFixed(1)}%</strong></span>
         <span>{training.config.optimizer.toUpperCase()} · lr {training.config.learning_rate}</span>
       </div>
-      <svg className="metrics-chart" viewBox="0 0 600 156" role="img" aria-labelledby="metrics-chart-title metrics-chart-description">
-        <title id="metrics-chart-title">Training loss and accuracy by epoch</title>
-        <desc id="metrics-chart-description">Two separate vertical bands show raw loss and accuracy observations without smoothing.</desc>
-        <g className="metric-grid">
-          <line x1={LEFT} x2={RIGHT} y1={LOSS_TOP} y2={LOSS_TOP} />
-          <line x1={LEFT} x2={RIGHT} y1={LOSS_BOTTOM} y2={LOSS_BOTTOM} />
-          <line x1={LEFT} x2={RIGHT} y1={ACCURACY_TOP} y2={ACCURACY_TOP} />
-          <line x1={LEFT} x2={RIGHT} y1={ACCURACY_BOTTOM} y2={ACCURACY_BOTTOM} />
-        </g>
-        <g className="metric-labels" aria-hidden="true">
-          <text x="6" y="25">LOSS</text><text x="6" y="98">ACC.</text>
-          <text x={RIGHT} y="153" textAnchor="end">EPOCH {final.epoch}</text>
-          <text x={LEFT} y="153">{training.history[0]?.epoch}</text>
-        </g>
-        <polyline className="metric-trace loss-trace" points={points(series.loss)} />
-        <polyline className="metric-trace accuracy-trace" points={points(series.accuracy)} />
-        {series.loss.map((point) => <circle className="metric-point loss-point" key={`loss-${point.epoch}`} cx={point.x} cy={point.y} r="2.4"><title>{`Epoch ${point.epoch} loss: ${point.value}`}</title></circle>)}
-        {series.accuracy.map((point) => <circle className="metric-point accuracy-point" key={`accuracy-${point.epoch}`} cx={point.x} cy={point.y} r="2.4"><title>{`Epoch ${point.epoch} accuracy: ${(point.value * 100).toFixed(2)}%`}</title></circle>)}
-      </svg>
+      <div className="metrics-chart" role="img" aria-label="Interactive training loss and accuracy by epoch">
+        <LineChart
+          accessibilityLayer
+          data={series.data}
+          margin={{ top: 10, right: 12, bottom: 2, left: 0 }}
+          responsive
+          style={{ width: "100%", height: 172 }}
+        >
+          <CartesianGrid stroke="var(--border)" strokeDasharray="2 5" vertical={false} />
+          <XAxis dataKey="epoch" minTickGap={28} stroke="var(--muted)" tick={{ fontSize: 9 }} tickLine={false} />
+          <YAxis yAxisId="loss" domain={series.lossDomain} stroke="var(--accent)" tick={{ fontSize: 9 }} tickFormatter={(value: number) => value.toFixed(3)} width={48} />
+          <YAxis yAxisId="accuracy" orientation="right" domain={[0, 100]} stroke="var(--success)" tick={{ fontSize: 9 }} tickFormatter={(value: number) => `${value}%`} width={42} />
+          <Tooltip
+            contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 11 }}
+            cursor={{ stroke: "var(--muted)", strokeDasharray: "3 3" }}
+            labelStyle={{ color: "var(--foreground)", fontFamily: "var(--font-mono)" }}
+          />
+          <Legend wrapperStyle={{ fontSize: 10, fontFamily: "var(--font-mono)" }} />
+          <ReferenceLine x={final.epoch} stroke="var(--muted)" strokeDasharray="2 3" />
+          <Line yAxisId="loss" type="monotone" dataKey="loss" name="Loss" stroke="var(--accent)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+          <Line yAxisId="accuracy" type="monotone" dataKey="accuracy" name="Accuracy %" stroke="var(--success)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+        </LineChart>
+      </div>
       <div className="metrics-table-wrap">
         <table>
           <caption>Most recent raw observations</caption>
