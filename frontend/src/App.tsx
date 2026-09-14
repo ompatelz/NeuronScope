@@ -11,6 +11,7 @@ import {
   type ActivationName, type DatasetKind, type ExperimentRequest,
   type ExperimentResponse, type InitializationName, type OptimizerName,
 } from "./api/experiments";
+import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
 import { parseHiddenLayers } from "./config";
 
 interface WorkbenchConfig {
@@ -132,7 +133,7 @@ function EmptyStage({ icon: Icon, title, text }: { icon: LucideIcon; title: stri
   return <div className="empty-stage"><Icon aria-hidden="true" /><strong>{title}</strong><p>{text}</p></div>;
 }
 
-function Stage({ state }: { state: RunState }) {
+function Stage({ state, onSelect }: { state: RunState; onSelect: (node: ArchitectureNodeData | null) => void }) {
   const result = state.status === "completed" ? state.result : null;
   return (
     <section className="stage" aria-label="Visualization stage">
@@ -142,7 +143,7 @@ function Stage({ state }: { state: RunState }) {
           <Tabs.Tab value="boundary"><Braces /> Boundary</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="network" className="stage-panel">
-          {result ? <div className="observed-summary"><small>Observed architecture</small><strong>{result.architecture.input_size} → {result.architecture.hidden_layers.join(" → ")} → {result.architecture.output_size}</strong><span>{result.architecture.total_parameters.toLocaleString()} trainable parameters</span><p>Interactive graph rendering arrives in Task 7. This summary comes from the API.</p></div>
+          {result ? <NetworkGraph architecture={result.architecture} onSelect={onSelect} />
             : <EmptyStage icon={Network} title="No observed architecture yet" text="Run an experiment to inspect the architecture returned by the training API." />}
         </Tabs.Panel>
         <Tabs.Panel value="boundary" className="stage-panel">
@@ -154,7 +155,7 @@ function Stage({ state }: { state: RunState }) {
   );
 }
 
-function Inspector({ state }: { state: RunState }) {
+function Inspector({ state, selected }: { state: RunState; selected: ArchitectureNodeData | null }) {
   const result = state.status === "completed" ? state.result : null;
   return (
     <aside className="inspector" aria-label="Debugger inspector">
@@ -162,12 +163,15 @@ function Inspector({ state }: { state: RunState }) {
       <Tabs.Root defaultValue="selection">
         <Tabs.List className="tab-list compact" aria-label="Inspector views"><Tabs.Tab value="selection">Selection</Tabs.Tab><Tabs.Tab value="diagnostics">Diagnostics</Tabs.Tab></Tabs.List>
         <Tabs.Panel value="selection" className="inspector-panel">
-          {result ? <dl className="data-list">
-            <div><dt>Layers</dt><dd>{result.architecture.layers.length}</dd></div>
-            <div><dt>Activation</dt><dd>{result.architecture.layers[0]?.activation ?? "None"}</dd></div>
-            <div><dt>Optimizer</dt><dd>{result.training.config.optimizer}</dd></div>
-            <div><dt>Epochs</dt><dd>{result.training.history.length}</dd></div>
-          </dl> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
+          {selected ? <><p className="selection-title">{selected.layerName} · {selected.label}</p><dl className="data-list">
+            <div><dt>Neuron</dt><dd>{selected.neuronIndex === null ? "Summary" : selected.neuronIndex + 1}</dd></div>
+            <div><dt>Layer width</dt><dd>{selected.width}</dd></div>
+            <div><dt>Activation</dt><dd>{selected.activation ?? "None"}</dd></div>
+            <div><dt>Layer parameters</dt><dd>{selected.parameterCount.toLocaleString()}</dd></div>
+          </dl></> : result ? <><p className="panel-copy">Select a neuron to inspect it. The run architecture is summarized below.</p><dl className="data-list">
+            <div><dt>Dense layers</dt><dd>{result.architecture.layers.length}</dd></div>
+            <div><dt>Total parameters</dt><dd>{result.architecture.total_parameters.toLocaleString()}</dd></div>
+          </dl></> : <p className="panel-copy">Run an experiment to populate observed model metadata.</p>}
         </Tabs.Panel>
         <Tabs.Panel value="diagnostics" className="inspector-panel"><p className="panel-copy">Diagnostics stay empty until Task 11 supplies transparent rules and evidence.</p></Tabs.Panel>
       </Tabs.Root>
@@ -190,6 +194,7 @@ function Metrics({ state }: { state: RunState }) {
 export function App() {
   const [config, setConfig] = useState(initialConfig);
   const [state, setState] = useState<RunState>({ status: "idle" });
+  const [selectedNode, setSelectedNode] = useState<ArchitectureNodeData | null>(null);
   function update<K extends keyof WorkbenchConfig>(key: K, value: WorkbenchConfig[K]) {
     setConfig((current) => ({ ...current, [key]: value }));
   }
@@ -198,6 +203,7 @@ export function App() {
     let request: ExperimentRequest;
     try { request = buildRequest(config); }
     catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "Invalid configuration." }); return; }
+    setSelectedNode(null);
     setState({ status: "loading" });
     try { setState({ status: "completed", result: await createExperiment(request) }); }
     catch (error) { setState({ status: "error", message: error instanceof Error ? error.message : "The training request failed." }); }
@@ -211,7 +217,7 @@ export function App() {
         </div>
       </header>
       <StateSummary state={state} />
-      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={state} /><Inspector state={state} /><Metrics state={state} /></div>
+      <div className="workbench-grid"><Configuration config={config} onChange={update} /><Stage state={state} onSelect={setSelectedNode} /><Inspector state={state} selected={selectedNode} /><Metrics state={state} /></div>
     </form></main>
   );
 }

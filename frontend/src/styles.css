@@ -71,6 +71,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 .empty-stage, .observed-summary { height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 32px; text-align: center; }
 .empty-stage svg { width: 24px; color: var(--muted); }.empty-stage strong, .observed-summary strong { font-size: 14px; }.empty-stage p, .observed-summary p { max-width: 390px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .observed-summary small { color: var(--accent); font: 600 10px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }.observed-summary > span { color: var(--muted); font: 11px/1.3 var(--font-mono); }
+.network-graph { width: 100%; height: 100%; min-height: 340px; background: var(--canvas); }
+.network-graph .react-flow__edge-path { stroke: color-mix(in oklch, var(--muted), transparent 68%); stroke-width: 1; }
+.network-graph .react-flow__controls { overflow: hidden; border: 1px solid var(--border); border-radius: 4px; box-shadow: none; }
+.network-graph .react-flow__controls-button { border-color: var(--border); background: var(--surface-raised); fill: var(--foreground); }
+.network-graph .react-flow__background pattern circle { fill: var(--border); }
+.neuron-node { position: relative; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-raised); color: var(--foreground); font: 600 9px/1 var(--font-mono); transition: border-color 120ms ease, box-shadow 120ms ease; }
+.neuron-node small { position: absolute; left: 50%; bottom: calc(100% + 7px); width: 86px; translate: -50%; color: var(--muted); font: 600 9px/1 var(--font-mono); text-align: center; text-transform: uppercase; }
+.neuron-node.is-selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent), transparent 78%); }
+.neuron-input { border-radius: 7px; }.neuron-output { border-color: var(--accent); }.neuron-overflow { border-style: dashed; border-radius: 7px; color: var(--muted); }
+.neuron-node .react-flow__handle { width: 5px; height: 5px; min-width: 0; min-height: 0; border: 0; background: var(--muted); }
+.selection-title { margin: 0 0 9px; font: 600 11px/1.3 var(--font-mono); }
 .inspector-panel { padding: 14px; }.panel-copy { max-width: 45ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .data-list { margin: 0; }.data-list div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 11px; }.data-list dt { color: var(--muted); }.data-list dd { margin: 0; font-family: var(--font-mono); text-transform: capitalize; }
 .metrics-table-wrap { overflow: auto; }.metrics-table-wrap table { width: 100%; border-collapse: collapse; font: 10px/1.35 var(--font-mono); }.metrics-table-wrap th { color: var(--muted); font-weight: 500; text-align: left; }.metrics-table-wrap th, .metrics-table-wrap td { padding: 5px 10px; border-bottom: 1px solid var(--border); }.metrics-table-wrap th:not(:first-child), .metrics-table-wrap td:not(:first-child) { text-align: right; }
