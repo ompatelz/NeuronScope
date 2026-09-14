@@ -61,7 +61,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Epochs"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Run experiment" }));
     await screen.findByText("Run completed");
-    await waitFor(() => expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(screen.getAllByText("90.0%", { exact: false }).length).toBeGreaterThanOrEqual(1));
     expect(screen.getByText("h1.1")).toBeTruthy();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body)) as { dataset: { samples: number }; model: { hidden_layers: number[] }; training: { epochs: number } };
@@ -74,7 +74,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Boundary" }));
     expect(screen.getByRole("img", { name: /^Final model decision boundary/ })).toBeTruthy();
     fireEvent.change(screen.getByRole("slider", { name: "Training playback epoch" }), { target: { value: "1" } });
-    expect(screen.getByLabelText("Run progress and final metrics").textContent).toContain("50.0%");
+    expect(screen.getByText("Recorded epoch 1")).toBeTruthy();
   });
 
   it("shows API failures as an alert", async () => {

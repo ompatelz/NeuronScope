@@ -3,6 +3,7 @@
 [![Backend CI](https://github.com/ompatelz/NeuronScope/actions/workflows/backend.yml/badge.svg)](https://github.com/ompatelz/NeuronScope/actions/workflows/backend.yml)
 [![Frontend CI](https://github.com/ompatelz/NeuronScope/actions/workflows/frontend.yml/badge.svg)](https://github.com/ompatelz/NeuronScope/actions/workflows/frontend.yml)
 [![Container CI](https://github.com/ompatelz/NeuronScope/actions/workflows/containers.yml/badge.svg)](https://github.com/ompatelz/NeuronScope/actions/workflows/containers.yml)
+[![Live demo](https://img.shields.io/badge/live%20demo-GitHub%20Pages-0969da)](https://ompatelz.github.io/NeuronScope/)
 
 NeuronScope is an interactive debugger for small neural-network training runs. Configure a binary
 classifier, watch its decision boundary change, inspect layer-by-layer gradient and activation
@@ -12,6 +13,10 @@ The classification problem is deliberately visual and bounded. NeuronScope uses 
 datasets so the model's predictions and internals—not data-cleaning ceremony—remain the focus.
 Every chart, boundary cell, metric, and diagnostic shown in the workbench comes from a real PyTorch
 run; the interface does not invent demonstration telemetry.
+
+Try the public browser demo at <https://ompatelz.github.io/NeuronScope/>. GitHub Pages cannot run
+the PyTorch API, so the hosted demo uses a labeled in-browser simulation for quick exploration.
+Run the Docker image or local FastAPI service when you want the full PyTorch-backed workflow.
 
 ## Features
 

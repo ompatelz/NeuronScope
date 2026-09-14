@@ -125,6 +125,9 @@ export interface ExperimentResponse {
   };
 }
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const browserDemoEnabled = import.meta.env.VITE_BROWSER_DEMO === "true";
+
 function errorMessage(payload: unknown): string | undefined {
   if (typeof payload !== "object" || payload === null || !("detail" in payload)) return undefined;
   const detail = payload.detail;
@@ -143,7 +146,7 @@ export async function createExperiment(
   request: ExperimentRequest,
   signal?: AbortSignal,
 ): Promise<ExperimentResponse> {
-  const response = await fetch("/api/v1/experiments", {
+  const response = await fetch(`${apiBaseUrl}/api/v1/experiments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -159,4 +162,8 @@ export async function createExperiment(
     throw new Error(errorMessage(payload) || `Training request failed (${response.status}).`);
   }
   return (await response.json()) as ExperimentResponse;
+}
+
+export function isBrowserDemoEnabled(): boolean {
+  return browserDemoEnabled;
 }

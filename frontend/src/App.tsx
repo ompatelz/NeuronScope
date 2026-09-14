@@ -10,10 +10,12 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
   createExperiment,
+  isBrowserDemoEnabled,
   type ActivationName, type DatasetKind, type ExperimentRequest,
   type ExperimentResponse, type InitializationName, type OptimizerName,
   type PlaybackSnapshot,
 } from "./api/experiments";
+import { createBrowserDemoExperiment } from "./api/browserDemo";
 import { DecisionBoundary } from "./components/decisionBoundary";
 import { DiagnosticsPanel } from "./components/diagnosticsPanel";
 import { LayerSignals } from "./components/layerSignals";
@@ -29,6 +31,7 @@ import { experimentPresets, initialConfig, type ExperimentPreset } from "./prese
 const TrainingMetricsChart = lazy(() => import("./components/trainingMetrics").then((module) => ({
   default: module.TrainingMetricsChart,
 })));
+const browserDemo = isBrowserDemoEnabled();
 
 type RunState =
   | { status: "idle" }
@@ -160,7 +163,7 @@ function StateSummary({ state }: { state: RunState }) {
     : state.status === "cancelled" ? [AlertCircle, "Run cancelled", "No result was recorded. You can adjust the configuration and run again."] as const
     : state.status === "error" ? [AlertCircle, "Run failed", state.message] as const
     : state.status === "completed" ? [CheckCircle2, "Run completed", `Accuracy ${(state.result.training.final_accuracy * 100).toFixed(1)}% · Loss ${state.result.training.final_loss.toFixed(4)}`] as const
-    : [CirclePlay, "Ready to train", "Review the configuration, then start a real run."] as const;
+    : [CirclePlay, "Ready to train", browserDemo ? "GitHub Pages demo mode runs a lightweight browser simulation." : "Review the configuration, then start a real run."] as const;
   const [Icon, title, text] = contents;
   return (
     <div className={`state-summary state-${state.status}`} role={state.status === "error" ? "alert" : "status"}>
@@ -319,7 +322,9 @@ export function App() {
     const requestId = ++requestSequence.current;
     setState({ status: "loading" });
     try {
-      const result = await createExperiment(request, controller.signal);
+      const result = browserDemo
+        ? await createBrowserDemoExperiment(request)
+        : await createExperiment(request, controller.signal);
       if (requestId !== requestSequence.current) return;
       const id = nextRunId.current;
       nextRunId.current += 1;
@@ -370,7 +375,7 @@ export function App() {
   return (
     <main className="app-shell"><form onSubmit={submit} noValidate aria-busy={state.status === "loading"}>
       <header className="command-bar">
-        <div className="brand-lockup"><Activity aria-hidden="true" /><span>NeuronScope</span><small>Training debugger</small></div>
+        <div className="brand-lockup"><Activity aria-hidden="true" /><span>NeuronScope</span><small>{browserDemo ? "Browser demo" : "Training debugger"}</small></div>
         <div className="run-controls"><span className={`status-dot status-${state.status}`} /><span className="status-label">{state.status}</span>
           {state.status === "loading" ? <button className="run-button cancel-button" type="button" onClick={cancelRun}><AlertCircle />Cancel run</button>
             : <button className="run-button" type="submit"><CirclePlay />Run experiment</button>}
