@@ -39,6 +39,13 @@ export interface DiagnosticResult {
   possible_actions: string[];
 }
 
+export interface PlaybackSnapshot {
+  epoch: number;
+  metrics: { epoch: number; loss: number; accuracy: number };
+  instrumentation: EpochInstrumentation | null;
+  probabilities: number[];
+}
+
 export interface ExperimentRequest {
   dataset: { kind: DatasetKind; samples: number; noise: number; seed: number };
   model: {
@@ -57,6 +64,7 @@ export interface ExperimentRequest {
   };
   boundary?: { resolution: number };
   diagnostics?: { consecutive_epochs?: number; vanishing_gradient_norm?: number; exploding_gradient_norm?: number; dead_relu_zero_percentage?: number };
+  playback?: { max_snapshots: number };
 }
 
 export interface ExperimentResponse {
@@ -91,6 +99,12 @@ export interface ExperimentResponse {
     probabilities: number[];
   };
   diagnostics: DiagnosticResult[];
+  playback: {
+    resolution: number;
+    x_coordinates: number[];
+    y_coordinates: number[];
+    snapshots: PlaybackSnapshot[];
+  };
 }
 
 function errorMessage(payload: unknown): string | undefined {

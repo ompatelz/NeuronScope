@@ -6,8 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from neuronscope.datasets import DatasetConfig, DatasetResult
 from neuronscope.diagnostics import DiagnosticResult, DiagnosticsConfig
+from neuronscope.instrumentation import EpochInstrumentation
 from neuronscope.models import MLPArchitecture, MLPConfig
-from neuronscope.training import TrainingConfig, TrainingResult
+from neuronscope.training import EpochMetrics, TrainingConfig, TrainingResult
 
 
 class DecisionBoundaryConfig(BaseModel):
@@ -29,6 +30,36 @@ class DecisionBoundaryResult(BaseModel):
     probabilities: tuple[float, ...]
 
 
+class PlaybackConfig(BaseModel):
+    """Bounded controls for recorded training snapshots."""
+
+    model_config = ConfigDict(frozen=True)
+
+    max_snapshots: int = Field(default=12, ge=2, le=24)
+
+
+class PlaybackSnapshot(BaseModel):
+    """Public playback data without model parameters or tensors."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    epoch: int = Field(ge=1)
+    metrics: EpochMetrics
+    instrumentation: EpochInstrumentation | None
+    probabilities: tuple[float, ...]
+
+
+class PlaybackResult(BaseModel):
+    """Fixed grid metadata and bounded recorded epochs."""
+
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    resolution: int = Field(ge=24, le=80)
+    x_coordinates: tuple[float, ...]
+    y_coordinates: tuple[float, ...]
+    snapshots: tuple[PlaybackSnapshot, ...]
+
+
 class ExperimentRequest(BaseModel):
     """Validated configuration for one generated binary-classification run."""
 
@@ -39,6 +70,7 @@ class ExperimentRequest(BaseModel):
     training: TrainingConfig
     boundary: DecisionBoundaryConfig = Field(default_factory=DecisionBoundaryConfig)
     diagnostics: DiagnosticsConfig = Field(default_factory=DiagnosticsConfig)
+    playback: PlaybackConfig = Field(default_factory=PlaybackConfig)
 
     @model_validator(mode="after")
     def validate_generated_dataset_shape(self) -> Self:
@@ -61,3 +93,4 @@ class ExperimentResponse(BaseModel):
     training: TrainingResult
     boundary: DecisionBoundaryResult
     diagnostics: tuple[DiagnosticResult, ...]
+    playback: PlaybackResult

@@ -24,6 +24,8 @@ def test_service_composes_a_complete_experiment_without_http() -> None:
     assert response.boundary.resolution == 48
     assert len(response.boundary.probabilities) == 48 * 48
     assert response.diagnostics == ()
+    assert response.playback.snapshots[0].epoch == 1
+    assert response.playback.snapshots[-1].epoch == 2
 
 
 def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
@@ -63,6 +65,7 @@ def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
     assert body["boundary"]["resolution"] == 48
     assert len(body["boundary"]["probabilities"]) == 48 * 48
     assert isinstance(body["diagnostics"], list)
+    assert body["playback"]["snapshots"][-1]["epoch"] == 2
 
 
 def test_experiment_endpoint_rejects_invalid_nested_configurations() -> None:

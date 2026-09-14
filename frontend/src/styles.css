@@ -53,6 +53,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 .panel-heading { display: flex; gap: 9px; min-height: 54px; align-items: flex-start; padding: 13px 14px; border-bottom: 1px solid var(--border); }
 .panel-heading > svg { width: 16px; margin-top: 1px; color: var(--accent); }.panel-heading h2 { margin: 0; font-size: 12px; font-weight: 650; }.panel-heading p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
 .metrics-dock > .panel-heading { min-height: auto; padding: 0 0 10px; border: 0; }
+.playback-control { display: grid; gap: 5px; margin-bottom: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--canvas); }.playback-control div { display: flex; justify-content: space-between; gap: 10px; font: 10px/1.2 var(--font-mono); }.playback-control span, .playback-control small { color: var(--muted); }.playback-control input { width: 100%; accent-color: var(--accent); }.playback-control small { font: 9px/1.2 var(--font-mono); }
 
 .control-group { display: grid; gap: 10px; margin: 0; padding: 15px 14px 17px; border: 0; border-bottom: 1px solid var(--border); }
 .control-group legend { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0; color: var(--muted); font: 600 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
