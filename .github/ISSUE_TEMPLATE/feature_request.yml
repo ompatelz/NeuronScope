@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose a focused improvement to the training debugger.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What inspection, debugging, or learning problem is currently difficult?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the workflow and what real model evidence would support the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Safety and scope
+      description: Note compute, data, upload, or arbitrary-code implications.

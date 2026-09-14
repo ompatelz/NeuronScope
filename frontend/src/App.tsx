@@ -195,7 +195,7 @@ function Stage({ state, onSelect, snapshot, traceKey }: { state: RunState; onSel
         </Tabs.Panel>
         <Tabs.Panel value="boundary" className="stage-panel">
           {result && boundary ? <DecisionBoundary boundary={boundary} points={result.dataset.points} />
-            : <EmptyStage icon={Braces} title="No decision boundary yet" text="A prediction grid will appear here when that real capability is implemented." />}
+            : <EmptyStage icon={Braces} title="No decision boundary yet" text="Run an experiment to inspect its observed prediction grid." />}
         </Tabs.Panel>
       </Tabs.Root>
     </section>

@@ -1,5 +1,9 @@
 # NeuronScope
 
+[![Backend CI](https://github.com/ompatelz/NeuronScope/actions/workflows/backend.yml/badge.svg)](https://github.com/ompatelz/NeuronScope/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/ompatelz/NeuronScope/actions/workflows/frontend.yml/badge.svg)](https://github.com/ompatelz/NeuronScope/actions/workflows/frontend.yml)
+[![Container CI](https://github.com/ompatelz/NeuronScope/actions/workflows/containers.yml/badge.svg)](https://github.com/ompatelz/NeuronScope/actions/workflows/containers.yml)
+
 NeuronScope is an interactive debugger for small neural-network training runs. Configure a binary
 classifier, watch its decision boundary change, inspect layer-by-layer gradient and activation
 statistics, and see evidence-backed warnings when learning behavior looks unhealthy.
@@ -26,7 +30,7 @@ run; the interface does not invent demonstration telemetry.
 - Review transparent vanishing-gradient, exploding/non-finite-gradient, and dead-ReLU heuristics,
   including their evidence, thresholds, explanations, and suggested experiments.
 - Scrub through 12 selected training snapshots in the workbench without sending model weights to
-  the browser (the API permits a bounded maximum of 24).
+  the browser by default, or configure up to 24 bounded snapshots.
 - Compare the five most recent completed runs in local browser memory.
 - Start from four evidence-oriented experiment presets, then tune decision-grid resolution,
   playback density, diagnostic persistence, and warning thresholds.
@@ -37,8 +41,19 @@ run; the interface does not invent demonstration telemetry.
 
 ## Interface preview
 
-Screenshots and recorded demo media are not checked into the repository yet. Run the workbench
-locally and follow the [3–5 minute demo script](docs/demo-script.md) to exercise the complete flow.
+![NeuronScope showing a completed neural-network run with observed forward-pass animation](docs/neuronscope-workbench.png)
+
+For a 30-second tour: keep **Healthy baseline** selected, choose **Run experiment**, replay the
+observed forward pass, then switch between **Boundary** and **Diagnostics**. The complete
+[3–5 minute demo script](docs/demo-script.md) covers the evidence and failure-oriented presets.
+
+## Why this exists
+
+NeuronScope demonstrates that an ML interface can be both visually useful and technically honest.
+Its graph, decision boundary, metrics, per-neuron activations, gradient summaries, and diagnostic
+evidence all trace back to a real deterministic PyTorch run. The project combines ML
+instrumentation with typed API contracts, accessible data visualization, reproducible tests, and
+resource-bounded deployment rather than treating the model as an opaque animation.
 
 ## Architecture
 
@@ -82,7 +97,7 @@ See [Architecture](docs/architecture.md) for module boundaries and the complete 
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4 |
 | UI and graph | Base UI, React Flow, Recharts, react-resizable-panels, Lucide |
 | Quality | pytest, Ruff, mypy, Vitest, Testing Library, ESLint |
-| Automation | GitHub Actions with separate backend and frontend gates |
+| Automation | GitHub Actions with backend, frontend, and production-container gates |
 
 ## Quickstart
 
@@ -181,8 +196,8 @@ systems, processors, PyTorch versions, or dependency lockfiles.
 
 ## Testing and quality gates
 
-On Windows, the root verification script installs locked dependencies and runs the same practical
-gates used by CI:
+On Windows, the root verification script installs dependencies from the committed lockfiles and
+runs the same practical gates used by CI:
 
 ```powershell
 .\scripts\verify.ps1
@@ -210,7 +225,7 @@ Backend tests cover generation, model construction, learning behavior, instrumen
 diagnostic boundaries, decision-grid inference, playback selection, and API serialization. Frontend
 tests cover configuration validation, request/error state, graph transforms, boundaries, metrics,
 signals, diagnostics, playback, run comparison, and key accessibility behavior. GitHub Actions run
-the corresponding backend or frontend gate for relevant pull requests and pushes to `main`.
+backend, frontend, and production-container gates for relevant pull requests and pushes to `main`.
 
 ## Limitations
 

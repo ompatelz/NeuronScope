@@ -129,7 +129,7 @@ After the first deployment:
 3. Inspect both build and runtime logs for dependency, bind-address, out-of-memory, timeout, and
    restart errors. Watch CPU, memory, response duration, and concurrent-request behavior during the
    training run.
-4. Confirm a client-side route refresh and the `/api/` same-origin proxy both work through HTTPS.
+4. Refresh the application root and confirm the same-origin `/api/` request still works through HTTPS.
 5. If a release fails, use the service's **Deployments** history to view its logs. Roll back to the
    last known-good deployment when it is still retained; Railway restores the earlier image and
    custom variables. Otherwise, redeploy that source revision. See [Deployment Actions](https://docs.railway.com/deployments/deployment-actions)
@@ -152,5 +152,6 @@ docker compose ps
 Invoke-RestMethod http://127.0.0.1:8080/api/v1/health
 ```
 
-Pin deployed image digests in the hosting environment for reproducible releases. The repository
-pins runtime major/minor families while retaining security patch updates during fresh builds.
+Record the deployed commit SHA and the image digest reported by the hosting environment for each
+release. The repository pins runtime major/minor families while retaining security patch updates
+during fresh builds.
