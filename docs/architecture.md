@@ -19,3 +19,15 @@ React workbench  ->  FastAPI API  ->  dataset/model/training modules
 The training engine consumes typed dataset results and a configured MLP directly. It stays
 transport-independent: the later experiment API can call it, while tests or notebooks can reuse
 the same service without constructing HTTP requests.
+
+## Experiment request flow
+
+`POST /api/v1/experiments` accepts nested dataset, model, and training configurations. Pydantic
+enforces their resource and shape bounds before an application service generates the dataset,
+builds the MLP, and runs training synchronously. The response contains the generated points,
+serializable architecture metadata, per-epoch metrics, optional scalar instrumentation, and final
+quality values. The route owns only HTTP transport; orchestration remains reusable without HTTP.
+
+Runs intentionally stay synchronous and CPU-bound while datasets, layer widths, layer counts, and
+epoch counts remain small and validated. NeuronScope does not need a queue or distributed worker
+for this product boundary.

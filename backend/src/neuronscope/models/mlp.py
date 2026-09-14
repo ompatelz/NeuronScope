@@ -1,17 +1,18 @@
 """Configurable and inspectable PyTorch multilayer perceptron."""
 
-from dataclasses import dataclass
 from typing import Literal, cast
 
 import torch
+from pydantic import BaseModel, ConfigDict
 from torch import Tensor, nn
 
 from neuronscope.models.schemas import ActivationName, InitializationName, MLPConfig
 
 
-@dataclass(frozen=True)
-class DenseLayerMetadata:
+class DenseLayerMetadata(BaseModel):
     """Stable metadata for one learned affine layer."""
+
+    model_config = ConfigDict(frozen=True)
 
     name: str
     input_size: int
@@ -20,9 +21,10 @@ class DenseLayerMetadata:
     parameter_count: int
 
 
-@dataclass(frozen=True)
-class MLPArchitecture:
+class MLPArchitecture(BaseModel):
     """A visualization-friendly description of an MLP."""
+
+    model_config = ConfigDict(frozen=True)
 
     input_size: int
     hidden_layers: tuple[int, ...]
