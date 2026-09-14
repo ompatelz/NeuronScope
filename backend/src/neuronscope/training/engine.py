@@ -5,6 +5,8 @@ from torch import Tensor, nn
 from torch.optim import SGD, Adam, Optimizer
 
 from neuronscope.datasets import DatasetResult
+from neuronscope.instrumentation import TrainingInstrumentationCollector
+from neuronscope.instrumentation.schemas import EpochInstrumentation
 from neuronscope.models import ConfigurableMLP
 from neuronscope.training.schemas import (
     EpochMetrics,
@@ -65,24 +67,39 @@ def train_model(
     optimizer = _optimizer(model, config)
     loss_function = nn.BCEWithLogitsLoss()
     history: list[EpochMetrics] = []
+    instrumentation_history: list[EpochInstrumentation] = []
+    collector = TrainingInstrumentationCollector(model) if config.instrumentation else None
 
-    for epoch in range(1, config.epochs + 1):
-        optimizer.zero_grad(set_to_none=True)
-        logits = model(features)
-        loss = loss_function(logits, targets)
-        if not torch.isfinite(loss):
-            raise FloatingPointError(f"Training produced a non-finite loss at epoch {epoch}.")
-        loss.backward()
-        optimizer.step()
+    if collector is not None:
+        collector.attach()
+    try:
+        for epoch in range(1, config.epochs + 1):
+            optimizer.zero_grad(set_to_none=True)
+            if collector is not None:
+                collector.begin_training_pass()
+            logits = model(features)
+            if collector is not None:
+                collector.end_training_forward()
+            loss = loss_function(logits, targets)
+            if not torch.isfinite(loss):
+                raise FloatingPointError(f"Training produced a non-finite loss at epoch {epoch}.")
+            loss.backward()
+            if collector is not None:
+                instrumentation_history.append(collector.capture_epoch(epoch))
+            optimizer.step()
 
-        with torch.no_grad():
-            loss_value, accuracy = _measure(model(features), targets, loss_function)
-        history.append(EpochMetrics(epoch=epoch, loss=loss_value, accuracy=accuracy))
+            with torch.no_grad():
+                loss_value, accuracy = _measure(model(features), targets, loss_function)
+            history.append(EpochMetrics(epoch=epoch, loss=loss_value, accuracy=accuracy))
+    finally:
+        if collector is not None:
+            collector.remove()
 
     final = history[-1]
     return TrainingResult(
         config=config,
         history=tuple(history),
+        instrumentation=tuple(instrumentation_history),
         final_loss=final.loss,
         final_accuracy=final.accuracy,
     )
