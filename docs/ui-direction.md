@@ -7,12 +7,16 @@
 - **Base UI** for accessible, unstyled interaction primitives; **Lucide** for a restrained icon set.
 - **shadcn/ui** is a source-owned registry we may selectively adopt when a concrete control is needed; its components are copied into this repository rather than hidden behind a design-system dependency.
 
-## Deferred deliberately
+## Added only when real data required it
 
-- **React Flow / React Flow UI:** excellent for an eventual computation graph, but no graph exists in Task 0.
-- **ECharts, Observable Plot, or Visx:** choose against actual diagnostic data and interaction requirements, not placeholder charts.
-- **Motion:** use only when an interaction communicates state; no decorative entrance animation.
-- **Radix:** mature alternative, but Base UI gives an accessible unstyled foundation with the current React stack. Avoid mixing primitive systems without a reason.
+- **React Flow:** introduced for the real model architecture graph, with fixed presentation-only
+  layout and bounded visible neurons.
+- **Native SVG:** selected for the decision boundary and compact metrics plots, avoiding a chart
+  dependency when the required visual transformations are small and testable.
+- **Motion:** remains unnecessary; CSS transitions respect reduced-motion preferences and no
+  decorative entrance animation was added.
+- **Radix:** remains a mature alternative, but Base UI already supplies the project's accessible
+  unstyled primitives. Mixing primitive systems would add cost without a current need.
 
 ## Workbench information architecture
 
