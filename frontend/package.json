@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
-    "@vitejs/plugin-react": "^5.1.1",
+    "@vitejs/plugin-react": "^6.1.1",
     "@xyflow/react": "^12.10.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
