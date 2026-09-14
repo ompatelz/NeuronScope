@@ -11,6 +11,7 @@ import {
   type ActivationName, type DatasetKind, type ExperimentRequest,
   type ExperimentResponse, type InitializationName, type OptimizerName,
 } from "./api/experiments";
+import { DecisionBoundary } from "./components/decisionBoundary";
 import { NetworkGraph, type ArchitectureNodeData } from "./components/networkGraph";
 import { parseHiddenLayers } from "./config";
 
@@ -50,6 +51,7 @@ function buildRequest(config: WorkbenchConfig): ExperimentRequest {
       optimizer: config.optimizer, learning_rate: config.learningRate,
       epochs: config.epochs, instrumentation: true,
     },
+    boundary: { resolution: 48 },
   };
 }
 
@@ -147,7 +149,7 @@ function Stage({ state, onSelect }: { state: RunState; onSelect: (node: Architec
             : <EmptyStage icon={Network} title="No observed architecture yet" text="Run an experiment to inspect the architecture returned by the training API." />}
         </Tabs.Panel>
         <Tabs.Panel value="boundary" className="stage-panel">
-          {result ? <div className="observed-summary"><small>Observed dataset</small><strong>{result.dataset.points.length.toLocaleString()} classified points</strong><span>No decision grid exists in this response.</span><p>Task 8 will render only boundaries computed from real model predictions.</p></div>
+          {result ? <DecisionBoundary boundary={result.boundary} points={result.dataset.points} />
             : <EmptyStage icon={Braces} title="No decision boundary yet" text="A prediction grid will appear here when that real capability is implemented." />}
         </Tabs.Panel>
       </Tabs.Root>

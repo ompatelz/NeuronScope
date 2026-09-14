@@ -21,6 +21,8 @@ def test_service_composes_a_complete_experiment_without_http() -> None:
     assert len(response.dataset.points) == 40
     assert response.architecture.hidden_layers == (4,)
     assert len(response.training.history) == 2
+    assert response.boundary.resolution == 48
+    assert len(response.boundary.probabilities) == 48 * 48
 
 
 def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
@@ -57,6 +59,8 @@ def test_experiment_endpoint_serializes_metrics_and_instrumentation() -> None:
     assert set(layer) == {"layer_name", "activation", "weight_norm", "gradients"}
     assert layer["activation"] is not None
     assert layer["gradients"]["norm"] is not None
+    assert body["boundary"]["resolution"] == 48
+    assert len(body["boundary"]["probabilities"]) == 48 * 48
 
 
 def test_experiment_endpoint_rejects_invalid_nested_configurations() -> None:

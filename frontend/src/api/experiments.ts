@@ -19,6 +19,7 @@ export interface ExperimentRequest {
     epochs: number;
     instrumentation: boolean;
   };
+  boundary?: { resolution: number };
 }
 
 export interface ExperimentResponse {
@@ -45,6 +46,12 @@ export interface ExperimentResponse {
     instrumentation: unknown[];
     final_loss: number;
     final_accuracy: number;
+  };
+  boundary: {
+    resolution: number;
+    x_coordinates: number[];
+    y_coordinates: number[];
+    probabilities: number[];
   };
 }
 
