@@ -3,6 +3,34 @@ export type ActivationName = "relu" | "sigmoid" | "tanh";
 export type InitializationName = "default" | "xavier" | "he";
 export type OptimizerName = "sgd" | "adam";
 
+export interface ActivationStatistics {
+  mean: number | null;
+  std: number | null;
+  minimum: number | null;
+  maximum: number | null;
+  zero_percentage: number;
+  nonfinite_count: number;
+}
+
+export interface GradientStatistics {
+  norm: number | null;
+  mean: number | null;
+  std: number | null;
+  nonfinite_count: number;
+}
+
+export interface LayerInstrumentation {
+  layer_name: string;
+  activation: ActivationStatistics | null;
+  weight_norm: number | null;
+  gradients: GradientStatistics;
+}
+
+export interface EpochInstrumentation {
+  epoch: number;
+  layers: LayerInstrumentation[];
+}
+
 export interface ExperimentRequest {
   dataset: { kind: DatasetKind; samples: number; noise: number; seed: number };
   model: {
@@ -43,7 +71,7 @@ export interface ExperimentResponse {
   training: {
     config: ExperimentRequest["training"];
     history: Array<{ epoch: number; loss: number; accuracy: number }>;
-    instrumentation: unknown[];
+    instrumentation: EpochInstrumentation[];
     final_loss: number;
     final_accuracy: number;
   };

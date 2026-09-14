@@ -91,6 +91,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, [role="tab"]:fo
 .selection-title { margin: 0 0 9px; font: 600 11px/1.3 var(--font-mono); }
 .inspector-panel { padding: 14px; }.panel-copy { max-width: 45ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .data-list { margin: 0; }.data-list div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 11px; }.data-list dt { color: var(--muted); }.data-list dd { margin: 0; font-family: var(--font-mono); text-transform: capitalize; }
+.layer-signals { margin-top: 18px; border-top: 1px solid var(--border); }
+.signals-title { display: flex; align-items: center; justify-content: space-between; padding: 11px 0 8px; }
+.signals-title h3 { margin: 0; font-size: 11px; }.signals-title span { color: var(--muted); font: 9px/1 var(--font-mono); }
+.layer-signal-row { padding: 10px 0 13px; border-top: 1px solid var(--border); }
+.layer-signal-row > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: 10px; }
+.layer-signal-row > header span { color: var(--danger); font: 9px/1 var(--font-mono); }
+.layer-signal-row.has-nonfinite { box-shadow: inset 2px 0 var(--danger); padding-left: 8px; }
+.signal-bar, .zero-bar { width: 100%; height: 3px; overflow: hidden; background: var(--border); }
+.signal-bar i, .zero-bar i { display: block; height: 100%; background: var(--accent); }
+.zero-bar i { background: color-mix(in oklch, var(--accent), var(--muted) 45%); }
+.signal-grid { display: grid; grid-template-columns: 1fr 1fr; margin: 7px 0 0; gap: 5px 10px; }
+.signal-grid div { min-width: 0; }.signal-grid dt { color: var(--muted); font-size: 9px; }.signal-grid dd { margin: 2px 0 0; overflow: hidden; font: 9px/1.2 var(--font-mono); text-overflow: ellipsis; }
+.signal-missing, .signal-unavailable { color: var(--muted); }.signal-unavailable { margin: 8px 0 0; font-size: 9px; line-height: 1.5; }
+.activation-heading { display: flex; justify-content: space-between; margin: 10px 0 5px; color: var(--muted); font-size: 9px; }
+.activation-grid { margin-top: 6px; }
 .training-metrics { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, .8fr); grid-template-rows: auto minmax(0, 1fr); gap: 8px 16px; }
 .metrics-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 7px 18px; color: var(--muted); font: 10px/1.3 var(--font-mono); }
 .metrics-meta strong { color: var(--foreground); font-weight: 650; }
