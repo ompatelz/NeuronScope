@@ -92,3 +92,44 @@ def test_experiment_endpoint_rejects_invalid_nested_configurations() -> None:
     assert invalid_dataset.status_code == 422
     assert invalid_model.status_code == 422
     assert invalid_training.status_code == 422
+
+
+def test_experiment_endpoint_accepts_the_complete_workbench_contract() -> None:
+    response = TestClient(create_app()).post(
+        "/api/v1/experiments",
+        json={
+            "dataset": {"kind": "circles", "samples": 40, "noise": 0.05, "seed": 9},
+            "model": {
+                "input_size": 2,
+                "hidden_layers": [4, 3],
+                "output_size": 1,
+                "activation": "tanh",
+                "initialization": "xavier",
+                "seed": 9,
+            },
+            "training": {
+                "optimizer": "sgd",
+                "learning_rate": 0.02,
+                "epochs": 3,
+                "instrumentation": True,
+            },
+            "boundary": {"resolution": 24},
+            "diagnostics": {
+                "consecutive_epochs": 2,
+                "vanishing_gradient_norm": 0.0001,
+                "exploding_gradient_norm": 100.0,
+                "dead_relu_zero_percentage": 95.0,
+            },
+            "playback": {"max_snapshots": 2},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dataset"]["config"]["kind"] == "circles"
+    assert body["architecture"]["hidden_layers"] == [4, 3]
+    assert body["training"]["config"]["optimizer"] == "sgd"
+    assert body["boundary"]["resolution"] == 24
+    assert len(body["boundary"]["probabilities"]) == 24**2
+    assert len(body["playback"]["snapshots"]) == 2
+    assert body["playback"]["snapshots"][-1]["epoch"] == 3
