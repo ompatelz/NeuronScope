@@ -1,0 +1,38 @@
+name: Container CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/Dockerfile"
+      - "backend/.dockerignore"
+      - "frontend/Dockerfile"
+      - "frontend/.dockerignore"
+      - "frontend/nginx.conf"
+      - "compose.yaml"
+      - ".github/workflows/containers.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/Dockerfile"
+      - "backend/.dockerignore"
+      - "frontend/Dockerfile"
+      - "frontend/.dockerignore"
+      - "frontend/nginx.conf"
+      - "compose.yaml"
+      - ".github/workflows/containers.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: containers-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose build
